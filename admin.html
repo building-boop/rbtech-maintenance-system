@@ -4,41 +4,354 @@
 <meta charset="UTF-8">
 <script>
   // 🔧 ตั้งค่า URL ของ Apps Script Web App ที่ deploy ไว้ (ลงท้ายด้วย /exec)
-  window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbx3VQnGBrWylwOd3WyZJhQpr_j9gs3tyjnXgKAv-rtH0ig1_Hu7fIT_7miEUXm_S8tslA/exec";
+ window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbx3VQnGBrWylwOd3WyZJhQpr_j9gs3tyjnXgKAv-rtH0ig1_Hu7fIT_7miEUXm_S8tslA/exec";
 </script>
 <script src="gas-bridge.js"></script>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ผู้ดูแลระบบ - สถิติภาพรวม</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ผู้ดูแลระบบ - ตรวจสอบรายงาน</title>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Prompt:wght@300;400;500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Prompt:wght@300;400;500;600&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --primary-edu: #1E3A8A; --primary-dark: #0F172A; --bg: #F4F6F9;
-    --surface: #FFFFFF; --line: #E2E8F0; --ink: #1E293B; --muted: #64748B;
+  :root{
+    --bg:#F4F6F9;
+    --surface:#FFFFFF;
+    --ink:#1E293B;
+    --muted:#64748B;
+    --line:#E2E8F0;
+    
+    /* โทนสีหลักของสถาบัน (กรมท่าและแดงเลือดหมูวิทยาลัย) */
+    --primary-edu:#1E3A8A;
+    --primary-dark:#0F172A;
+    --accent-gold:#D97706;
+    
+    /* ปรับโทนสีแท็บให้ดูสุภาพเป็นทางการขึ้น */
+    --tab1:#0F766E;
+    --tab1-soft:rgba(15,118,110,0.08);
+    --tab2:#1E4ED8;
+    --tab2-soft:rgba(30,78,216,0.08);
+    --tab3:#B91C1C;
+    --tab3-soft:rgba(185,28,28,0.08);
+    --tab4:#6D28D9;
+    --tab4-soft:rgba(109,40,217,0.08);
+    
+    --radius-lg:12px;
+    --radius-md:8px;
   }
-  body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--ink); padding-bottom: 60px; }
-  h1, h2, h3, h4, .font-display { font-family: 'Kanit', sans-serif; }
+  *{box-sizing:border-box;}
+  body{
+    font-family:'Prompt', 'Sarabun', sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    margin:0;
+    padding: 0 0 60px; /* ปรับลด padding-top เพื่อให้ navbar ชิดขอบบน */
+    letter-spacing: 0.2px;
+  }
+  h1,h2,h3,.font-display{font-family:'Kanit', sans-serif; font-weight: 600;}
 
-  /* Navbar */
-  .custom-navbar { background-color: var(--primary-edu); box-shadow: 0 4px 15px rgba(15,23,42,0.15); padding: 10px 0; margin-bottom: 24px; }
-  .custom-navbar .navbar-brand { color: #ffffff; font-size: 1.25rem; }
-  .custom-navbar .nav-link { color: rgba(255,255,255,0.85); font-weight: 400; border-radius: 8px; transition: 0.2s; padding: 8px 14px !important; margin: 0 2px;}
-  .custom-navbar .nav-link:hover, .custom-navbar .nav-link.active { color: #ffffff; background-color: rgba(255,255,255,0.1); }
-  .btn-back-print { background: linear-gradient(135deg, #7A1C1C, #561010) !important; color: #ffffff !important; }
+  .container{max-width:1200px;}
 
-  /* Dashboard Cards */
-  .stat-card { background: var(--surface); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-left: 5px solid; display: flex; align-items: center; justify-content: space-between; }
-  .stat-card.blue { border-color: #1E4ED8; }
-  .stat-card.red { border-color: #B91C1C; }
-  .stat-card.teal { border-color: #0F766E; }
-  .stat-card.gold { border-color: #D97706; }
-  .stat-card h3 { margin: 0; font-size: 2rem; font-weight: 700; }
-  .stat-card p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+  /* ================= Navbar Styles ================= */
+  .custom-navbar {
+    background-color: var(--primary-edu);
+    box-shadow: 0 4px 15px rgba(15,23,42,0.15);
+    padding: 10px 0;
+    margin-bottom: 24px;
+  }
+  .custom-navbar .navbar-brand {
+    color: #ffffff;
+    font-size: 1.25rem;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+  }
+  .custom-navbar .navbar-brand:hover { color: #f8fafc; }
+  .custom-navbar .nav-link {
+    color: rgba(255,255,255,0.85);
+    font-weight: 400;
+    font-size: 0.95rem;
+    padding: 8px 14px !important;
+    margin: 0 2px;
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease;
+  }
+  .custom-navbar .nav-link:hover {
+    color: #ffffff;
+    background-color: rgba(255,255,255,0.1);
+  }
+  .custom-navbar .navbar-toggler {
+    border-color: rgba(255,255,255,0.3);
+  }
+  .custom-navbar .navbar-toggler-icon {
+    filter: invert(1);
+  }
+  /* ปุ่มกลับหน้าตรวจสอบ (เน้นสีเลือดหมู) */
+  .btn-back-print {
+    background: linear-gradient(135deg, #7A1C1C, #561010) !important;
+    color: #ffffff !important;
+    font-weight: 500 !important;
+    box-shadow: 0 2px 8px rgba(122,28,28,0.25);
+  }
+  .btn-back-print:hover {
+    background: linear-gradient(135deg, #912323, #661414) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(122,28,28,0.35);
+  }
 
-  .chart-container { background: var(--surface); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 20px; }
+  /* แผงส่วนหัว */
+  .dash-header{
+    display:flex; align-items:center; justify-content:space-between; gap:20px;
+    background:var(--surface);
+    border-radius:var(--radius-lg);
+    padding:24px 30px;
+    margin-bottom:24px;
+    box-shadow:0 4px 20px -2px rgba(15,23,42,0.08);
+    border-left: 6px solid var(--primary-edu);
+    flex-wrap:wrap;
+  }
+  .dash-title{display:flex; align-items:center; gap:18px;}
+  .dash-title .mark-logo{
+    width:70px; height:70px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .dash-title .mark-logo img {
+    width: 100%; height: 100%; object-fit: contain;
+  }
+  .dash-title h2{font-size:1.45rem; font-weight:700; margin:0; color:var(--primary-dark); letter-spacing: 0.5px;}
+  .dash-title p{font-size:.9rem; color:var(--muted); margin:4px 0 0; font-family: 'Sarabun', sans-serif;}
+  
+  /* ปุ่มพิมพ์เอกสารสไตล์หน่วยงานราชการ/สถาบัน */
+  .btn-print{
+    border:none; border-radius:var(--radius-md);
+    background:linear-gradient(135deg, #7A1C1C, #561010); /* สีแดงเลือดหมูวิทยาลัย */
+    color:#fff; font-weight:500; padding:12px 24px; font-size:.95rem;
+    box-shadow:0 4px 12px rgba(122,28,28,0.25);
+    white-space:nowrap;
+    transition: all 0.2s ease;
+  }
+  .btn-print:hover{
+    color:#fff; background:linear-gradient(135deg, #912323, #661414);
+    transform: translateY(-1px); box-shadow:0 6px 16px rgba(122,28,28,0.35);
+  }
 
-  .stat-card h3.loading { color: var(--muted) !important; font-size: 1rem; font-weight: 400; }
+  /* แถบกรองข้อมูล */
+  .datebar{
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    background:var(--surface);
+    border-radius:var(--radius-lg);
+    padding:16px 24px;
+    margin-bottom:20px;
+    box-shadow:0 2px 12px -2px rgba(15,23,42,0.06);
+    border: 1px solid var(--line);
+  }
+  .datebar label{font-weight:600; font-size:.9rem; color:var(--ink); display:flex; align-items:center; gap:6px;}
+  .datebar input[type="date"]{
+    border:1.5px solid var(--line); border-radius:var(--radius-md);
+    padding:8px 14px; font-family:'Prompt',sans-serif; font-size:.9rem; color:var(--ink);
+    background:#F8FAFC; transition: border-color 0.2s;
+  }
+  .datebar input[type="date"]:focus{
+    border-color: var(--primary-edu); outline: none;
+  }
+  .btn-today{
+    border:1.5px solid var(--line); border-radius:var(--radius-md);
+    background:#FFFFFF; color:var(--primary-edu); font-weight:500; font-size:.88rem;
+    padding:8px 16px; transition: all 0.2s;
+  }
+  .btn-today:hover{background:#F1F5F9; border-color: var(--muted);}
+  
+  .live-badge{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:.8rem; font-weight:600; color:#0F766E;
+    background:rgba(15,118,110,0.1); padding:6px 14px; border-radius:99px;
+  }
+  .live-dot{
+    width:8px; height:8px; border-radius:50%; background:#0F766E;
+    animation: pulse 1.4s infinite;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(15,118,110,0.55);}
+    70%{box-shadow:0 0 0 8px rgba(15,118,110,0);}
+    100%{box-shadow:0 0 0 0 rgba(15,118,110,0);}
+  }
+  .hist-badge{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:.8rem; font-weight:600; color:var(--muted);
+    background:#E2E8F0; padding:6px 14px; border-radius:99px;
+  }
+  .datebar-spacer{flex:1;}
+  .last-updated{font-size:.8rem; color:var(--muted); font-family: 'Sarabun', sans-serif;}
+  .img-toggle{
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:.88rem; font-weight:500; color:var(--ink);
+    background:#FFFFFF; border:1.5px solid var(--line);
+    padding:8px 14px; border-radius:var(--radius-md); cursor: pointer;
+  }
+  .img-toggle input{width:16px; height:16px; cursor:pointer;}
+
+  /* ระบบแท็บควบคุมสไตล์เป็นทางการ */
+  .tabbar{
+    display:flex; gap:6px; margin-bottom:20px; flex-wrap:wrap;
+    background:#E2E8F0; padding:6px; border-radius:var(--radius-lg);
+  }
+  .tabbar .nav-item{flex:1; min-width:160px;}
+  .tabbar .nav-link{
+    width:100%; border:none; border-radius:var(--radius-md);
+    padding:12px 10px; font-weight:500; font-size:.92rem;
+    color:#475569; background:transparent;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    transition:all 0.2s ease;
+  }
+  .tabbar .nav-link:hover {
+    color: var(--primary-dark); background: rgba(255,255,255,0.4);
+  }
+  .tabbar .nav-link .count{
+    font-size:.75rem; font-weight:600; padding:2px 8px; border-radius:99px;
+    background:rgba(0,0,0,0.06); color:#475569;
+  }
+  .tabbar #tab-btn-1.active{background:var(--surface); color:var(--tab1); font-weight:600; box-shadow: 0 2px 6px rgba(0,0,0,0.05);}
+  .tabbar #tab-btn-1.active .count{background:var(--tab1); color:#fff;}
+  .tabbar #tab-btn-2.active{background:var(--surface); color:var(--tab2); font-weight:600; box-shadow: 0 2px 6px rgba(0,0,0,0.05);}
+  .tabbar #tab-btn-2.active .count{background:var(--tab2); color:#fff;}
+  .tabbar #tab-btn-3.active{background:var(--surface); color:var(--tab3); font-weight:600; box-shadow: 0 2px 6px rgba(0,0,0,0.05);}
+  .tabbar #tab-btn-3.active .count{background:var(--tab3); color:#fff;}
+  .tabbar #tab-btn-4.active{background:var(--surface); color:var(--tab4); font-weight:600; box-shadow: 0 2px 6px rgba(0,0,0,0.05);}
+  .tabbar #tab-btn-4.active .count{background:var(--tab4); color:#fff;}
+
+  /* การ์ดเนื้อหาตาราง */
+  .content-card{
+    background:var(--surface);
+    border-radius:var(--radius-lg);
+    padding:8px;
+    box-shadow:0 4px 20px -2px rgba(15,23,42,0.06);
+    border-top:4px solid var(--line);
+    overflow:hidden;
+  }
+  #tab1.tab-pane.active ~ .content-card,
+  .content-card.accent-1{border-top-color:var(--tab1);}
+  .content-card.accent-2{border-top-color:var(--tab2);}
+  .content-card.accent-3{border-top-color:var(--tab3);}
+  .content-card.accent-4{border-top-color:var(--tab4);}
+
+  /* ปรับปรุงตารางข้อมูลหน่วยงาน */
+  .table-scroll{overflow-x:auto; border-radius:var(--radius-md);}
+  table{margin:0; font-family: 'Sarabun', sans-serif;}
+  table thead th{
+    background:#F8FAFC; color:var(--primary-dark); font-weight:600; font-size:.88rem;
+    border-bottom:2px solid var(--line) !important; white-space:nowrap;
+    position:sticky; top:0; z-index:2; padding:14px 12px !important;
+  }
+  table tbody td{
+    font-size:.9rem; border-color:var(--line) !important; vertical-align:middle; padding:12px 12px !important;
+  }
+  table tbody tr:hover{background:#F8FAFC;}
+  table thead th:first-child, table tbody td:first-child{
+    position:sticky; left:0; background:inherit; z-index:1;
+  }
+  table thead th:first-child{background:#F8FAFC; z-index:3;}
+
+  /* ป้ายสถานะระเบียบสถาบัน */
+  .pill{
+    display:inline-block; padding:4px 12px; border-radius:4px;
+    font-size:.8rem; font-weight:600; font-family: 'Prompt', sans-serif;
+  }
+  .pill-ok{background:#DCFCE7; color:#15803D; border: 1px solid #BBF7D0;}
+  .pill-bad{background:#FEE2E2; color:#B91C1C; border: 1px solid #FCA5A5;}
+  
+  /* ปุ่มเปิดรูปภาพ */
+  .btn-view{
+    border-radius:6px; font-size:.8rem; padding:6px 12px;
+    border:1px solid #CBD5E1; color:var(--primary-edu); background:#FFFFFF;
+    text-decoration:none; font-family: 'Prompt', sans-serif;
+    transition: all 0.2s;
+  }
+  .btn-view:hover{background:#F1F5F9; color:var(--primary-dark); border-color: var(--muted);}
+  .img-cell{display:flex; align-items:center; gap:8px; white-space:nowrap;}
+  .img-cell input{width:16px; height:16px; cursor:pointer; flex-shrink:0;}
+
+  .empty-row{padding:50px 0; text-align:center; color:var(--muted); font-size: 0.95rem;}
+
+  .print-section { display: none; }
+
+  /* ================== ส่วนล่างนี้ ห้ามสลับหรือปรับเปลี่ยนระบบสั่งพิมพ์เด็ดขาด ================== */
+  @media print {
+    body { background: white; color: black; padding: 0; font-family:'Sarabun','TH Sarabun New',sans-serif; }
+    .no-print, .btn, .nav-tabs, .tabbar, .dash-header, .datebar { display: none !important; }
+
+    .container > .tab-content,
+    .container > .d-flex,
+    .content-card { display: none !important; }
+
+    .print-section { display: none; }
+    body[data-print-tab="tab1"] #print-tab1 { display: block !important; }
+    body[data-print-tab="tab2"] #print-tab2 { display: block !important; }
+    body[data-print-tab="tab3"] #print-tab3 { display: block !important; }
+    body[data-print-tab="tab4"] #print-tab4 { display: block !important; }
+
+    .print-page {
+      page-break-after: always;
+      padding: 10mm;
+      font-family:'Sarabun','TH Sarabun New',sans-serif;
+    }
+    .print-page:last-child { page-break-after: auto; }
+
+    table.print-table { border: 1px solid black !important; width: 100%; border-collapse: collapse; }
+    table.print-table th, table.print-table td {
+      border: 1px solid black !important;
+      padding: 4px 6px;
+      font-size: 13px;
+      vertical-align: middle;
+      font-family:'Sarabun','TH Sarabun New',sans-serif;
+    }
+    table.print-table th { text-align: center; }
+    .print-title { text-align: center; font-weight: bold; font-size: 19px; margin-bottom: 2px; }
+    .print-subtitle { text-align: center; font-weight: bold; font-size: 16px; margin-bottom: 10px; }
+    .print-meta { font-size: 14px; margin-bottom: 6px; }
+    .print-meta span.line { display: inline-block; min-width: 180px; border-bottom: 1px dotted black; }
+
+    .sign-block { margin-top: 30px; font-size: 14px; }
+    .sign-row { display: flex; justify-content: space-between; margin-top: 20px; }
+    .sign-col { width: 45%; text-align: center; }
+    .sign-col .line { border-bottom: 1px dotted black; display: block; height: 24px; }
+    .sign-col .caption { margin-top: 4px; }
+    .sign-row-center { text-align: center; margin-top: 25px; }
+    .sign-row-center .line { border-bottom: 1px dotted black; display: inline-block; width: 260px; height: 24px; }
+
+    .checkbox-cell { text-align: center; white-space: nowrap; }
+    .check-mark { font-weight: bold; }
+
+    .img-appendix-title{
+      text-align:center; font-weight:bold; font-size:18px; margin-bottom:14px;
+    }
+    .img-appendix-grid{
+      display:grid; grid-template-columns:1fr 1fr; gap:10mm;
+    }
+    .img-appendix-card{
+      border:1px solid #000; padding:6px; text-align:center;
+      break-inside:avoid;
+    }
+    .img-appendix-card img{
+      width:100%; height:75mm; object-fit:contain; display:block; margin-bottom:6px;
+    }
+    .img-appendix-card .cap{
+      font-size:12px; text-align:left; line-height:1.4;
+    }
+    .img-appendix-card .cap b{font-weight:bold;}
+    .img-appendix-missing{
+      width:100%; height:75mm; display:flex; align-items:center; justify-content:center;
+      border:1px dashed #999; color:#999; font-size:12px; margin-bottom:6px;
+    }
+  }
+
+  @media (max-width:768px){
+    .custom-navbar { padding: 10px 14px; }
+    .dash-header{padding:20px 20px;}
+    .dash-title h2{font-size:1.2rem;}
+    .btn-print{width:100%; justify-content:center; display:flex;}
+    .tabbar .nav-link{font-size:.85rem; padding:10px 4px;}
+    .datebar{padding:14px 16px;}
+    .datebar-spacer{display:none;}
+  }
 </style>
 </head>
 <body>
@@ -63,185 +376,791 @@
   </div>
 </nav>
 
-<div class="container">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="font-display" style="color:var(--primary-dark)">📊 สถิติภาพรวม (Dashboard)</h2>
-    <select class="form-select w-auto" id="periodSelect">
-      <option value="month">ประจำเดือนนี้</option>
-      <option value="year">ประจำปีนี้</option>
-    </select>
+<div class="container px-3 px-lg-0 bg-transparent p-0">
+
+  <!-- แก้ไขโครงสร้างการ์ดหัวเว็บ ดึงภาพโลโก้มาใส่แทน Emoji -->
+  <div class="dash-header no-print">
+    <div class="dash-title">
+      <div class="mark-logo">
+        <img src="https://lh3.googleusercontent.com/d/1fRohMoXnyqmqrXWYxy84vKo_6jRyBfhA" alt="โลโก้วิทยาลัยเทคนิครัตนบุรี">
+      </div>
+      <div>
+        <h2>ระบบตรวจสอบและสั่งพิมพ์เอกสาร</h2>
+        <p>ฝ่ายอาคารสถานที่ · วิทยาลัยเทคนิครัตนบุรี</p>
+      </div>
+    </div>
+    <button class="btn btn-print" onclick="printCurrentTab()">🖨 พิมพ์รายงานหน้านี้ (ออกฟอร์ม A4)</button>
   </div>
 
-  <div class="row g-4">
-    <div class="col-md-3">
-      <div class="stat-card blue">
-        <div><p>ทำความสะอาด (ครั้ง)</p><h3 id="statCleaning" class="loading" style="color:#1E4ED8;">…</h3></div><div class="fs-1">🧹</div>
+  <div class="datebar no-print">
+    <label for="filterDate">📅 เลือกวันที่:</label>
+    <input type="date" id="filterDate" onchange="onDateChange()">
+    <button class="btn-today" onclick="goToToday()">กลับไปวันนี้</button>
+    <label class="img-toggle"><input type="checkbox" id="includeImagesToggle" checked onchange="onIncludeImagesToggle()"> 📎 แนบรูปภาพประกอบตอนพิมพ์</label>
+    <span class="datebar-spacer"></span>
+    <span id="statusBadge" class="live-badge"><span class="live-dot"></span> เรียลไทม์ (วันนี้)</span>
+    <span id="lastUpdated" class="last-updated"></span>
+  </div>
+
+  <ul class="nav tabbar no-print" id="adminTab" role="tablist">
+    <li class="nav-item"><button class="nav-link active" id="tab-btn-1" data-bs-toggle="tab" data-bs-target="#tab1">🧹 แม่บ้านประจำวัน <span class="count" id="count-1">0</span></button></li>
+    <li class="nav-item"><button class="nav-link" id="tab-btn-2" data-bs-toggle="tab" data-bs-target="#tab2">📋 ตรวจรอบสัปดาห์ <span class="count" id="count-2">0</span></button></li>
+    <li class="nav-item"><button class="nav-link" id="tab-btn-3" data-bs-toggle="tab" data-bs-target="#tab3">🚨 นักเรียนแจ้งซ่อม <span class="count" id="count-3">0</span></button></li>
+    <li class="nav-item"><button class="nav-link" id="tab-btn-4" data-bs-toggle="tab" data-bs-target="#tab4">🛒 ขอซื้ออุปกรณ์ (ภารโรง) <span class="count" id="count-4">0</span></button></li>
+  </ul>
+
+  <div class="tab-content">
+    <div class="tab-pane fade show active" id="tab1">
+      <div class="content-card accent-1">
+        <div class="table-scroll">
+          <table class="table table-bordered align-middle mb-0">
+            <thead>
+              <tr><th>วัน-เวลา</th><th>ผู้บันทึก</th><th>พิกัดสถานที่</th><th>ความสะอาด</th><th>ถังขยะ</th><th>รูปภาพ</th></tr>
+            </thead>
+            <tbody id="daily-table"></tbody>
+          </table>
+        </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="stat-card teal">
-        <div><p>ตรวจสุขาภิบาล (ครั้ง)</p><h3 id="statSanitary" class="loading" style="color:#0F766E;">…</h3></div><div class="fs-1">📋</div>
+    <div class="tab-pane fade" id="tab2">
+      <div class="content-card accent-2">
+        <div class="table-scroll">
+          <table class="table table-bordered table-sm align-middle mb-0" style="font-size: 13px;">
+            <thead>
+              <tr><th>วัน-เวลา</th><th>ผู้ตรวจ</th><th>สถานที่</th><th>ข้อ1</th><th>ข้อ2</th><th>ข้อ3</th><th>ข้อ4</th><th>ข้อ5</th><th>ข้อ6</th><th>ข้อ7</th><th>ข้อ8</th><th>ข้อ9</th><th>ข้อ10</th><th>ข้อ11</th><th>ข้อ12</th><th>ข้อ13</th><th>ข้อ14</th><th>ข้อ15</th><th>รูป</th></tr>
+            </thead>
+            <tbody id="weekly-table"></tbody>
+          </table>
+        </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="stat-card red">
-        <div><p>แจ้งซ่อมรอดำเนินการ</p><h3 id="statRepairPending" class="loading" style="color:#B91C1C;">…</h3></div><div class="fs-1">🚨</div>
+    <div class="tab-pane fade" id="tab3">
+      <div class="content-card accent-3">
+        <div class="table-scroll">
+          <table class="table table-bordered align-middle mb-0">
+            <thead>
+              <tr><th>วัน-เวลา</th><th>พิกัด</th><th>อาการชำรุด</th><th>รายละเอียด</th><th>รูปซ่อม</th><th>สถานะ</th></tr>
+            </thead>
+            <tbody id="student-table"></tbody>
+          </table>
+        </div>
       </div>
     </div>
-    <div class="col-md-3">
-      <div class="stat-card gold">
-        <div><p>งบขอซื้ออุปกรณ์ (บาท)</p><h3 id="statBudget" class="loading" style="color:#D97706;">…</h3></div><div class="fs-1">🛒</div>
+    <div class="tab-pane fade" id="tab4">
+      <div class="content-card accent-4">
+        <div class="table-scroll">
+          <table class="table table-bordered align-middle mb-0">
+            <thead>
+              <tr><th>วัน-เวลา</th><th>ผู้ขอซื้อ (ภารโรง)</th><th>รายการพัสดุ/อุปกรณ์</th><th>จำนวนหน่วย</th><th>ราคา/หน่วย</th><th>รวมเป็นเงิน (บาท)</th><th>รูปภาพ</th><th>หมายเหตุ</th></tr>
+            </thead>
+            <tbody id="purchase-table"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="row mt-2">
-    <div class="col-md-8">
-      <div class="chart-container">
-        <h4 class="mb-3">สถิติการแจ้งซ่อมย้อนหลัง 6 เดือน</h4>
-        <canvas id="barChart" height="100"></canvas>
-      </div>
-    </div>
-    <div class="col-md-4">
-      <div class="chart-container">
-        <h4 class="mb-3">สถานที่แจ้งซ่อมบ่อยที่สุด</h4>
-        <canvas id="pieChart" height="200"></canvas>
-      </div>
-    </div>
-  </div>
+  <div class="print-section" id="print-tab1"></div>
+  <div class="print-section" id="print-tab2"></div>
+  <div class="print-section" id="print-tab3"></div>
+  <div class="print-section" id="print-tab4"></div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  // เก็บ instance ของกราฟไว้ เพื่อจะได้ destroy ก่อนวาดใหม่ (ป้องกันกราฟซ้อนกัน)
-  let barChartInstance = null;
-  let pieChartInstance = null;
+  let RAW_DATA = { daily: [], weekly: [], student: [], purchase: [] };
+  let LATEST_DATA = { daily: [], weekly: [], student: [], purchase: [] };
 
-  /**
-   * ฟังก์ชันตัวเลขในการ์ดสถิติ 4 ใบ
-   * คาดหวังว่า data (จาก getDashboardData() ฝั่ง Apps Script) มีรูปแบบ:
-   * {
-   *   cleaning: number,        // ทำความสะอาด (ครั้ง)
-   *   sanitary: number,        // ตรวจสุขาภิบาล (ครั้ง)
-   *   repairPending: number,   // แจ้งซ่อมรอดำเนินการ
-   *   budget: number,          // งบขอซื้ออุปกรณ์ (บาท)
-   *   repairHistory:    { labels: string[], counts: number[] },  // 6 เดือนย้อนหลัง
-   *   repairByLocation: { labels: string[], counts: number[] }   // สถานที่แจ้งซ่อมบ่อยที่สุด
-   * }
-   *
-   * ปรับชื่อ field ให้ตรงกับสิ่งที่ getDashboardData() ฝั่ง .gs จริงๆ ส่งกลับมาได้เลย
-   */
-  function updateDashboard(data) {
-    data = data || {};
+  let selectedDateStr = todayISO();
+  let pollTimer = null;
+  const POLL_INTERVAL_MS = 15000;
 
-    setStat('statCleaning', data.cleaning);
-    setStat('statSanitary', data.sanitary);
-    setStat('statRepairPending', data.repairPending);
-    setStat('statBudget', formatNumber(data.budget));
+  let IMAGE_SELECTION = {};
+  let INCLUDE_IMAGES_IN_PRINT = true;
+  let TABLE_ROWS = { daily: [], weekly: [], student: [], purchase: [] };
 
-    updateCharts(data);
+  const IMG_COL = { daily: 5, weekly: 18, student: 4, purchase: 6 };
+
+  function toggleImageSelectionByIndex(tabKey, rowIdx, checked) {
+    const row = (TABLE_ROWS[tabKey] || [])[rowIdx];
+    if (row) toggleImageSelection(tabKey, row, checked);
   }
 
-  function setStat(id, value) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.classList.remove('loading');
-    el.innerText = (value === undefined || value === null) ? '0' : value;
+  function onIncludeImagesToggle() {
+    INCLUDE_IMAGES_IN_PRINT = document.getElementById("includeImagesToggle").checked;
+    buildPrintTab1(LATEST_DATA.daily);
+    buildPrintTab2(LATEST_DATA.weekly);
+    buildPrintTab3(LATEST_DATA.student);
+    buildPrintTab4(LATEST_DATA.purchase, selectedDateStr);
   }
 
-  function formatNumber(n) {
-    if (n === undefined || n === null) return '0';
-    return Number(n).toLocaleString('th-TH');
+  function imgKey(tabKey, row) {
+    return tabKey + "::" + esc(row[0]) + "::" + esc(row[1]);
   }
 
-  function updateCharts(data) {
-    const history = (data && data.repairHistory) || { labels: [], counts: [] };
-    const byLocation = (data && data.repairByLocation) || { labels: [], counts: [] };
+  function isImageSelected(tabKey, row) {
+    const key = imgKey(tabKey, row);
+    if (!(key in IMAGE_SELECTION)) IMAGE_SELECTION[key] = true;
+    return IMAGE_SELECTION[key];
+  }
 
-    const barCtx = document.getElementById('barChart');
-    if (barCtx) {
-      if (barChartInstance) barChartInstance.destroy();
-      barChartInstance = new Chart(barCtx, {
-        type: 'bar',
-        data: {
-          labels: history.labels,
-          datasets: [{
-            label: 'จำนวนแจ้งซ่อม',
-            data: history.counts,
-            backgroundColor: '#1E4ED8'
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
-        }
-      });
+  function toggleImageSelection(tabKey, row, checked) {
+    IMAGE_SELECTION[imgKey(tabKey, row)] = checked;
+  }
+
+  function driveThumbUrl(url, size) {
+    url = esc(url).trim();
+    if (!url) return "";
+    size = size || 1000;
+
+    let id = "";
+    let m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (m) id = m[1];
+    if (!id) {
+      m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (m) id = m[1];
+    }
+    if (!id) return url;
+
+    return "https://drive.google.com/thumbnail?id=" + id + "&sz=w" + size;
+  }
+
+  const CHECKLIST_15 = [
+    { title: "ประตูและกลอนประตู", detail: "(บานพับ/สายยู/ลูกบิด/ป้ายหน้าห้องน้ำ)" },
+    { title: "กระจกเงา", detail: "(หน้าอ่างล้างมือ/ไม่มีคราบน้ำบดบังทัศนียภาพ)" },
+    { title: "ชักโครก / โถส้วม", detail: "(ตัวกดน้ำ/ฝารองนั่ง/ความสะอาดรอบโถ)" },
+    { title: "สายฉีดชำระ", detail: "(หัวฉีด/สายยาง/จุดรั่วซึม/แรงดันน้ำพอเหมาะ)" },
+    { title: "โถปัสสาวะชาย", detail: "(ระบบฟลัชน้ำ/ตะแกรงดักขยะ/ก้อนดับกลิ่น)" },
+    { title: "อ่างล้างมือและก๊อกน้ำ", detail: "(ตัวก๊อก/สะดืออ่าง/การระบายน้ำ)" },
+    { title: "ระบบระบายน้ำทิ้งพื้น", detail: "(ตะแกรงดักกลิ่น/น้ำไม่ท่วมขัง)" },
+    { title: "ระบบไฟฟ้าและแสงสว่าง", detail: "(หลอดไฟติดครบ/ฝาครอบสวิตช์ปลอดภัย)" },
+    { title: "ผนัง เพดาน", detail: "(ไม่มีหยากไย่/ไม่มีคราบเชื้อราจากความชื้น)" },
+    { title: "พัดลมระบายอากาศ/ช่องลม", detail: "(ไม่มีฝุ่นเกาะหนา/ทำงานปกติ)" },
+    { title: "พื้นห้องน้ำ", detail: "(ไม่มีคราบตะไคร่/ไม่มีน้ำขังอันตราย/พื้นแห้ง)" },
+    { title: "ถังขยะ", detail: "(มีถุงดำรองรับ/มีฝาปิดมิดชิด/ไม่มีขยะล้นออกมา)" },
+    { title: "จุดบริการสบู่ล้างมือ", detail: "(มีสบู่เพียงพอ/ตัวกดไม่ตันหรือรั่วซึม)" },
+    { title: "กล่องใส่กระดาษชำระ", detail: "(มีกระดาษ/กล่องล็อกสนิทไม่ชำรุด)" },
+    { title: "ภาพรวมกลิ่น", detail: "(ไม่มีกลิ่นเหม็นอับหรือกลิ่นแอมโมเนียรบกวน)" }
+  ];
+
+  const SIGN_HEAD = "นายปรีชา  ศรชัย";
+  const SIGN_HEAD_POS = "หัวหน้างานอาคารสถานที่";
+  const SIGN_DEPUTY = "นายเพ็ชร  เพียรชนะ";
+  const SIGN_DEPUTY_POS = "รองผู้อำนวยการฝ่ายบริหารทรัพยากร";
+
+  function todayISO() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  function formatISOFromDate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  function rowDateISO(cellValue) {
+    if (cellValue === null || cellValue === undefined || cellValue === "") return "";
+
+    if (cellValue instanceof Date && !isNaN(cellValue.getTime())) {
+      return formatISOFromDate(cellValue);
     }
 
-    const pieCtx = document.getElementById('pieChart');
-    if (pieCtx) {
-      if (pieChartInstance) pieChartInstance.destroy();
-      pieChartInstance = new Chart(pieCtx, {
-        type: 'pie',
-        data: {
-          labels: byLocation.labels,
-          datasets: [{
-            data: byLocation.counts,
-            backgroundColor: ['#B91C1C', '#D97706', '#0F766E', '#1E4ED8', '#64748B', '#94A3B8']
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { position: 'bottom' } }
-        }
-      });
+    const val = String(cellValue).trim();
+    if (!val) return "";
+
+    let m = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) {
+      const day = m[1].padStart(2, "0");
+      const month = m[2].padStart(2, "0");
+      const year = m[3];
+      return year + "-" + month + "-" + day;
     }
+
+    m = val.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+    if (m) {
+      return m[1] + "-" + m[2].padStart(2, "0") + "-" + m[3].padStart(2, "0");
+    }
+
+    const parsed = new Date(val);
+    if (!isNaN(parsed.getTime())) {
+      return formatISOFromDate(parsed);
+    }
+
+    return "";
   }
 
-  /**
-   * ข้อมูลตัวอย่างไว้ใช้แสดงผลตอนเปิดไฟล์นี้นอก Google Apps Script
-   * (เช่น เปิดดูตรงๆ ในเบราว์เซอร์) จะไม่ถูกใช้เมื่อรันจริงบน Apps Script
-   */
-  function getFallbackData() {
-    return {
-      cleaning: 142,
-      sanitary: 24,
-      repairPending: 7,
-      budget: 5400,
-      repairHistory: {
-        labels: ['ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.'],
-        counts: [5, 8, 6, 10, 7, 9]
-      },
-      repairByLocation: {
-        labels: ['อาคาร 1', 'อาคาร 2', 'โรงอาหาร', 'สนามกีฬา', 'ห้องสมุด', 'อื่นๆ'],
-        counts: [10, 8, 6, 5, 3, 2]
+  function filterRowsByDate(rows, dateStr) {
+    if (!rows) return [];
+    return rows.filter(function(r) {
+      const iso = rowDateISO(r[0]);
+      if (!iso && r[0]) {
+        console.warn("ไม่สามารถแปลงค่าวันที่ในแถวนี้ได้:", r[0]);
       }
-    };
+      return iso === dateStr;
+    });
   }
 
-  function loadDashboard() {
-    const period = document.getElementById('periodSelect').value; // 'month' หรือ 'year'
-    if (window.google && google.script && google.script.run) {
-      // ทำงานจริงบน Google Apps Script -> ดึงข้อมูลสรุปจาก getDashboardStats() ใน Code.gs
-      // (ไม่ใช่ getDashboardData() ซึ่งคืนแถวดิบรายวันสำหรับหน้า admin คนละแบบกัน)
-      google.script.run
-        .withSuccessHandler(updateDashboard)
-        .withFailureHandler(function (err) {
-          console.error('getDashboardStats ล้มเหลว:', err);
-          updateDashboard(getFallbackData());
-        })
-        .getDashboardStats(period);
+  function applyDateFilter() {
+    LATEST_DATA = {
+      daily: filterRowsByDate(RAW_DATA.daily, selectedDateStr),
+      weekly: filterRowsByDate(RAW_DATA.weekly, selectedDateStr),
+      student: filterRowsByDate(RAW_DATA.student, selectedDateStr),
+      purchase: filterRowsByDate(RAW_DATA.purchase, selectedDateStr)
+    };
+
+    renderTable("daily-table", LATEST_DATA.daily, 6, "daily");
+    renderTable("weekly-table", LATEST_DATA.weekly, 19, "weekly");
+    renderTable("student-table", LATEST_DATA.student, 6, "student");
+    renderTable("purchase-table", LATEST_DATA.purchase, 8, "purchase");
+
+    updateCounts();
+
+    buildPrintTab1(LATEST_DATA.daily);
+    buildPrintTab2(LATEST_DATA.weekly);
+    buildPrintTab3(LATEST_DATA.student);
+    buildPrintTab4(LATEST_DATA.purchase, selectedDateStr);
+
+    updateStatusBadge();
+  }
+
+  function updateStatusBadge() {
+    const badge = document.getElementById("statusBadge");
+    const isToday = selectedDateStr === todayISO();
+    if (isToday) {
+      badge.className = "live-badge";
+      badge.innerHTML = '<span class="live-dot"></span> เรียลไทม์ (วันนี้)';
     } else {
-      // เปิดไฟล์นอก Apps Script (พรีวิวในเบราว์เซอร์) -> ใช้ข้อมูลตัวอย่าง
-      updateDashboard(getFallbackData());
+      badge.className = "hist-badge";
+      badge.innerHTML = "📁 ข้อมูลย้อนหลัง (" + formatThaiDate(selectedDateStr) + ")";
+    }
+    const lu = document.getElementById("lastUpdated");
+    lu.textContent = "อัปเดตล่าสุด: " + new Date().toLocaleTimeString('th-TH');
+  }
+
+  function formatThaiDate(isoStr) {
+    if (!isoStr) return "";
+    const parts = isoStr.split("-");
+    return parts[2] + "/" + parts[1] + "/" + parts[0];
+  }
+
+  function onDateChange() {
+    const picker = document.getElementById("filterDate");
+    selectedDateStr = picker.value || todayISO();
+    fetchData();
+    setupPolling();
+  }
+
+  function goToToday() {
+    selectedDateStr = todayISO();
+    document.getElementById("filterDate").value = selectedDateStr;
+    fetchData();
+    setupPolling();
+  }
+
+  function setupPolling() {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+    if (selectedDateStr === todayISO()) {
+      pollTimer = setInterval(fetchData, POLL_INTERVAL_MS);
     }
   }
 
-  // เปลี่ยนช่วงเวลา (เดือนนี้ / ปีนี้) แล้วโหลดข้อมูลใหม่ตามช่วงที่เลือก
-  document.getElementById('periodSelect').addEventListener('change', loadDashboard);
+  function fetchData() {
+    if (window.google && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(handleData)
+        .withFailureHandler(handleFetchError)
+        .getDashboardData(selectedDateStr);
+    } else {
+      const now = new Date();
+      const yest = new Date(now); yest.setDate(now.getDate() - 1);
+      const fmt = function(d, hh, mm, ss) {
+        return d.getDate() + "/" + (d.getMonth() + 1) + "/" + d.getFullYear() + ", " + hh + ":" + mm + ":" + ss;
+      };
+      handleData({
+        daily: [[fmt(now, "8", "12", "05"), "สมชาย ใจดี", "อาคาร A", "เรียบร้อย", "เรียบร้อย", "https://drive.google.com/file/d/14TIvfEBHA0V0b_bQjLmj3D29as3bqh2h/view?usp=drivesdk"]],
+        weekly: [[fmt(now, "9", "00", "10"), "สมหญิง รักงาน", "อาคาร B", "ปกติ","ปกติ","ปกติ","ปกติ","ปกติ","ปกติ","ปกติ","ปกติ","ปกติ","ปกติ","ปกติ","ปกติ","ปกติ","ชำรุด/ต้องแก้ไข","ปกติ", "https://drive.google.com/file/d/14TIvfEBHA0V0b_bQjLmj3D29as3bqh2h/view?usp=drivesdk"]],
+        student: [[fmt(now, "10", "31", "22"), "อาคาร A ชั้น 1", "สกปรก/มีกลิ่นรบกวน", "ถังขยะล้น", "https://drive.google.com/file/d/14TIvfEBHA0V0b_bQjLmj3D29as3bqh2h/view?usp=drivesdk", "รอดำเนินการ"]],
+        purchase: [
+          [fmt(now, "9", "15", "30"), "นายสมหมาย (นักการ)", "สายฉีดชำระครบชุด", "5 ชุด", "120", "600", "https://drive.google.com/file/d/14TIvfEBHA0V0b_bQjLmj3D29as3bqh2h/view?usp=drivesdk", "ขอซื้อเพื่อเปลี่ยนห้องน้ำอาคาร 3"],
+          [fmt(now, "9", "15", "30"), "นายสมหมาย (นักการ)", "หลอดไฟ LED 18W", "10 หลอด", "50", "500", "", ""],
+          [fmt(yest, "14", "20", "05"), "นายสมหมาย (นักการ)", "ถุงมือยาง", "3 กล่อง", "80", "240", "", "ตัวอย่างข้อมูลของเมื่อวาน (ทดสอบปฏิทิน)"]
+        ]
+      });
+    }
+  }
 
-  document.addEventListener('DOMContentLoaded', loadDashboard);
+  window.onload = function() {
+    document.getElementById("filterDate").value = selectedDateStr;
+    fetchData();
+    setupPolling();
+  };
+
+  function handleFetchError(err) {
+    console.error("getDashboardData() error:", err);
+    const badge = document.getElementById("statusBadge");
+    badge.className = "hist-badge";
+    badge.style.color = "#E1495B";
+    badge.style.background = "rgba(225,73,91,.12)";
+    badge.innerHTML = "⚠️ โหลดข้อมูลไม่สำเร็จ: " + (err && err.message ? err.message : String(err));
+    ["daily-table","weekly-table","student-table","purchase-table"].forEach(function(id) {
+      document.getElementById(id).innerHTML =
+        '<tr><td colspan="20" class="empty-row" style="color:#E1495B;">เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์: ' +
+        (err && err.message ? err.message : String(err)) +
+        '</td></tr>';
+    });
+  }
+
+  function handleData(data) {
+    RAW_DATA = data || { daily: [], weekly: [], student: [], purchase: [] };
+    applyDateFilter();
+  }
+
+  function updateCounts() {
+    document.getElementById("count-1").textContent = (LATEST_DATA.daily || []).length;
+    document.getElementById("count-2").textContent = (LATEST_DATA.weekly || []).length;
+    document.getElementById("count-3").textContent = (LATEST_DATA.student || []).length;
+    document.getElementById("count-4").textContent = (LATEST_DATA.purchase || []).length;
+  }
+
+  function statusPillHtml(text) {
+    const t = String(text).trim();
+    if (/ชำรุด|ปรับปรุง|แก้ไข|รอดำเนินการ/i.test(t)) return '<span class="pill pill-bad">' + t + '</span>';
+    if (/ปกติ|เรียบร้อย|สะอาด|เสร็จสิ้น|ซ่อมแล้ว/i.test(t)) return '<span class="pill pill-ok">' + t + '</span>';
+    return null;
+  }
+
+  function renderTable(id, rows, colCount, tabKey) {
+    let tbody = document.getElementById(id);
+    tbody.innerHTML = "";
+    TABLE_ROWS[tabKey] = rows || [];
+    if (!rows || rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="' + colCount + '" class="empty-row">ไม่มีข้อมูลในวันที่เลือก</td></tr>';
+      return;
+    }
+    rows.forEach(function(row, rowIdx) {
+      let tr = document.createElement("tr");
+      row.forEach(function(cell) {
+        let td = document.createElement("td");
+        if (typeof cell === "string" && cell.indexOf("http") === 0) {
+          const checked = isImageSelected(tabKey, row);
+
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = !!checked;
+          cb.title = "เลือก/ไม่เลือกรูปนี้สำหรับแนบตอนพิมพ์";
+          cb.addEventListener("change", function() {
+            toggleImageSelectionByIndex(tabKey, rowIdx, this.checked);
+          });
+
+          const link = document.createElement("a");
+          link.href = cell;
+          link.target = "_blank";
+          link.className = "btn-view";
+          link.textContent = "🔍 เปิดดูรูป";
+
+          const wrap = document.createElement("span");
+          wrap.className = "img-cell";
+          wrap.appendChild(cb);
+          wrap.appendChild(link);
+          td.appendChild(wrap);
+        } else {
+          const pill = statusPillHtml(cell);
+          if (pill) td.innerHTML = pill;
+          else td.innerText = cell;
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  function esc(v) { return (v === null || v === undefined) ? "" : String(v); }
+
+  function splitDateTime(val) {
+    val = esc(val);
+    if (!val) return { date: "", time: "" };
+    const parts = val.split(/,?\s+/);
+    if (parts.length >= 2) return { date: parts[0].replace(/,$/, ""), time: parts.slice(1).join(" ") };
+    return { date: val.replace(/,$/, ""), time: "" };
+  }
+
+  function buildImageAppendixPages(tabKey, rows, appendixTitle, captionFn) {
+    if (!INCLUDE_IMAGES_IN_PRINT || !rows || rows.length === 0) return "";
+
+    const imgColIdx = IMG_COL[tabKey];
+    const selectedRows = rows.filter(function(r) {
+      const url = esc(r[imgColIdx]).trim();
+      return url && isImageSelected(tabKey, r);
+    });
+
+    if (selectedRows.length === 0) return "";
+
+    const PER_PAGE = 4;
+    let pages = "";
+
+    for (let i = 0; i < selectedRows.length; i += PER_PAGE) {
+      const chunk = selectedRows.slice(i, i + PER_PAGE);
+      let cards = "";
+      chunk.forEach(function(r) {
+        const rawUrl = esc(r[imgColIdx]).trim();
+        const imgUrl = driveThumbUrl(rawUrl, 1000);
+
+        let imgHtml = "";
+        if (imgUrl) {
+          imgHtml = '<img src="' + imgUrl + '" alt="รูปภาพประกอบ" ' +
+            'onerror="this.replaceWith(Object.assign(document.createElement(&quot;div&quot;),' +
+            '{className:&quot;img-appendix-missing&quot;,innerText:&quot;ไม่สามารถโหลดรูปภาพได้&quot;}));">';
+        } else {
+          imgHtml = '<div class="img-appendix-missing">ไม่มีรูปภาพ</div>';
+        }
+
+        cards += '<div class="img-appendix-card">' + imgHtml +
+          '<div class="cap">' + captionFn(r) + '</div></div>';
+      });
+
+      let pageText = "";
+      if (selectedRows.length > PER_PAGE) {
+        pageText = " (หน้า " + (Math.floor(i / PER_PAGE) + 1) + "/" + Math.ceil(selectedRows.length / PER_PAGE) + ")";
+      }
+
+      pages += '<div class="print-page"><div class="img-appendix-title">' + appendixTitle + pageText +
+        '</div><div class="img-appendix-grid">' + cards + '</div></div>';
+    }
+
+    return pages;
+  }
+
+  const TAB1_MIN_ROWS = 8;
+
+  function buildPrintTab1(rows) {
+    rows = rows || [];
+
+    const groups = {};
+    const order = [];
+    rows.forEach(function(r) {
+      const name = esc(r[1]).trim() || "ไม่ระบุชื่อ";
+      if (!groups[name]) { groups[name] = []; order.push(name); }
+      groups[name].push(r);
+    });
+
+    let pages = "";
+    if (order.length === 0) {
+      pages = '<div class="print-page">' + buildTab1PageHtml("", []) + '</div>';
+    } else {
+      order.forEach(function(name) {
+        pages += '<div class="print-page">' + buildTab1PageHtml(name, groups[name]) + '</div>';
+      });
+    }
+
+    pages += buildImageAppendixPages("daily", rows, "ภาคผนวก: รูปภาพประกอบการทำความสะอาดประจำวัน", function(r) {
+      const dt = splitDateTime(r[0]);
+      return '<b>วันที่/เวลา:</b> ' + esc(dt.date) + ' ' + esc(dt.time) +
+        '<br><b>ผู้บันทึก:</b> ' + esc(r[1]) + '<br><b>สถานที่:</b> ' + esc(r[2]);
+    });
+
+    document.getElementById("print-tab1").innerHTML = pages;
+  }
+
+  function buildTab1PageHtml(staffName, entries) {
+    const rowCount = Math.max(TAB1_MIN_ROWS, entries.length);
+    let bodyRows = "";
+
+    const defaultDottedLines =
+      "...........................................<br>" +
+      "...........................................<br>" +
+      "...........................................";
+
+    for (let i = 0; i < rowCount; i++) {
+      const r = entries[i];
+      let dateCell, startTime, cleanCol, trashCol, sanitaryCol, otherColContent;
+
+      if (r) {
+        const dt = splitDateTime(r[0]);
+        dateCell = esc(dt.date) || "....../....../......";
+        startTime = esc(dt.time) || "...............";
+        const location = esc(r[2]);
+        const clean = esc(r[3]);
+
+        const rawTrash = r[4] ? esc(r[4]).trim() : "";
+        const rawSanitary = r[5] ? esc(r[5]).trim() : "";
+
+        cleanCol = [location, clean].filter(Boolean).join(" - ");
+        trashCol = rawTrash ? "เรียบร้อย" : "";
+        sanitaryCol = rawSanitary ? "เรียบร้อย" : "";
+
+        const rawOther = r[6] ? esc(r[6]).trim() : "";
+        otherColContent = rawOther ? rawOther : defaultDottedLines;
+      } else {
+        dateCell = "....../....../......";
+        startTime = "...............";
+        cleanCol = "";
+        trashCol = "";
+        sanitaryCol = "";
+        otherColContent = defaultDottedLines;
+      }
+
+      bodyRows += '<tr>' +
+        '<td style="text-align:center; vertical-align:middle;">' + dateCell + '</td>' +
+        '<td style="text-align:center; vertical-align:middle;">' + startTime + ' น.<br>ถึง<br>............... น.</td>' +
+        '<td style="vertical-align:middle;">' + cleanCol + '</td>' +
+        '<td style="text-align:center; vertical-align:middle;">' + trashCol + '</td>' +
+        '<td style="text-align:center; vertical-align:middle;">' + sanitaryCol + '</td>' +
+        '<td style="line-height:1.1; vertical-align:top; padding-top: 5px;">' + otherColContent + '</td>' +
+        '</tr>';
+    }
+
+    const signaturesHtml =
+      '<div class="print-signatures" style="margin-top:30px; font-size: 10pt;">' +
+      '<table style="width: 100%; border-collapse: collapse; border: none; background: transparent;">' +
+      '<tr>' +
+      '<td style="width: 50%; border: none; text-align: center; padding-right: 15px;">' +
+      'ลงชื่อ .....................................................<br>' +
+      '(<span style="display:inline-block; width: 220px; border-bottom: 1px dotted #000; text-align:center;">&nbsp;</span>)<br>' +
+      'ผู้ปฏิบัติงานในภาระหน้าที่</td>' +
+      '<td style="width: 50%; border: none; text-align: center; padding-left: 15px;">' +
+      'ลงชื่อ .....................................................<br>' +
+      '(<span style="display:inline-block; width: 220px; text-align:center;">นายปรีชา ศรชัย</span>)<br>' +
+      'หัวหน้างานอาคารสถานที่</td>' +
+      '</tr>' +
+      '<tr><td colspan="2" style="border: none; text-align: center; padding-top: 15px;">' +
+      'ลงชื่อ .....................................................<br>' +
+      '(<span style="display:inline-block; width: 220px; text-align:center;">นายเพ็ชร เพียรชนะ</span>)<br>' +
+      'รองผู้อำนวยการฝ่ายบริหารทรัพยากร</td></tr>' +
+      '</table></div>';
+
+    const styleBlock =
+      '<style>' +
+      '@import url(\'https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap\');' +
+      '.print-page{font-family:"Sarabun","TH Sarabun New",sans-serif !important;font-size:10pt !important;line-height:1.4;' +
+      'background-color:#ffffff !important;color:#000000 !important;box-shadow:none !important;margin:0 !important;' +
+      'border:none !important;width:100% !important;height:100% !important;position:relative;padding:5mm 10mm;box-sizing:border-box;}' +
+      '.print-page,.print-page *{font-size:10pt !important;}' +
+      '.print-title{font-size:10pt !important;font-weight:bold;text-align:center;margin-bottom:5px;}' +
+      '.print-subtitle{font-size:10pt !important;font-weight:bold;text-align:center;margin-bottom:10px;}' +
+      '.print-meta{font-size:10pt !important;margin-bottom:10px;display:flex;justify-content:flex-start;gap:15px;align-items:baseline;}' +
+      '.meta-field{display:inline-flex;align-items:flex-end;white-space:nowrap;}' +
+      '.meta-label{font-size:10pt !important;font-weight:bold;white-space:nowrap;}' +
+      '.meta-value-box{font-size:10pt !important;display:inline-block;width:340px;border-bottom:1px dotted #000;padding-left:5px;}' +
+      '.meta-value-box.pos{width:150px;}' +
+      '.print-table{width:100%;border-collapse:collapse;border:1px solid #000;font-size:10pt !important;background-color:#ffffff !important;}' +
+      '.print-table th,.print-table td{border:1px solid #000;padding:2px 4px;font-size:10pt !important;line-height:1.2;}' +
+      '.print-table th{font-weight:bold;text-align:center;vertical-align:middle;}' +
+      '.print-table tbody tr{height:25px;}' +
+      '.print-table thead tr:nth-child(1) th[rowspan="2"]{width:12%;}' +
+      '.print-table thead tr:nth-child(2) th{width:16%;line-height:1.2;}' +
+      '.print-table thead tr:nth-child(2) th:last-child{width:auto;}' +
+      '.print-signatures table td{background-color:#ffffff !important;}' +
+      '@media print{@page{size:A4 portrait;margin:10mm;}.print-page{page-break-inside:avoid;}}' +
+      '</style>';
+
+    return styleBlock +
+      '<div class="print-title">บันทึกการปฏิบัติงานในภาระหน้าที่</div>' +
+      '<div class="print-subtitle">วิทยาลัยเทคนิครัตนบุรี</div>' +
+      '<div class="print-meta">' +
+      '<div class="meta-field"><span class="meta-label">ชื่อ&nbsp;-&nbsp;สกุล&nbsp;</span>' +
+      '<span class="meta-value-box">' + esc(staffName) + '</span></div>' +
+      '<div class="meta-field"><span class="meta-label">ตำแหน่ง</span>' +
+      '<span class="meta-value-box pos"></span></div>' +
+      '</div>' +
+      '<table class="print-table"><thead>' +
+      '<tr><th rowspan="2">วัน/เดือน/ปี</th><th rowspan="2">เวลา</th><th colspan="4">การปฏิบัติงาน</th></tr>' +
+      '<tr><th>ดูแล/ทำความ<br>สะอาด อาคาร<br>สถานที่ที่รับผิดชอบ</th>' +
+      '<th>จัดเก็บและ<br>คัดแยกขยะ</th>' +
+      '<th>ดูแลความสะอาด<br>สุขาภิบาล</th>' +
+      '<th>งานอื่น ๆ หรือ<br>ที่ได้รับมอบหมาย<br>จากผู้บังคับบัญชา</th></tr>' +
+      '</thead><tbody>' + bodyRows + '</tbody></table>' +
+      signaturesHtml;
+  }
+
+  function buildPrintTab2(rows) {
+    rows = rows || [];
+
+    if (rows.length === 0) {
+      document.getElementById("print-tab2").innerHTML =
+        '<div class="print-page"><div class="print-title">แบบตรวจสุขาภิบาลและอุปกรณ์สิ่งอำนวยความสะดวก</div><br>' +
+        '<div style="text-align:center;font-size:18px;">ไม่มีข้อมูลของวันที่เลือก</div></div>';
+      return;
+    }
+
+    let pages = "";
+
+    rows.forEach(function(r) {
+      const dt = splitDateTime(r[0]);
+      const inspector = esc(r[1]);
+      const location = esc(r[2]);
+      let itemRows = "";
+
+      for (let i = 0; i < 15; i++) {
+        const value = esc(r[3 + i]).trim();
+        const ok = /ปกติ|สะอาด|เรียบร้อย/i.test(value) && !/ชำรุด|ปรับปรุง|แก้ไข|พบจุด/i.test(value);
+        const bad = /ชำรุด|ปรับปรุง|แก้ไข|พบจุด/i.test(value);
+
+        itemRows += '<tr>' +
+          '<td style="text-align:center;">' + (i + 1) + '</td>' +
+          '<td><b>' + CHECKLIST_15[i].title + '</b><br><small>' + CHECKLIST_15[i].detail + '</small></td>' +
+          '<td style="text-align:center;font-size:18px;">' + (ok ? "☑" : "☐") + '</td>' +
+          '<td style="text-align:center;font-size:18px;">' + (bad ? "☑" : "☐") + '</td>' +
+          '<td>' + (bad ? value : "") + '</td>' +
+          '</tr>';
+      }
+
+      pages += '<div class="print-page">' +
+        '<div style="text-align:center;font-size:22px;font-weight:bold;">แบบตรวจสุขาภิบาลและอุปกรณ์สิ่งอำนวยความสะดวก</div>' +
+        '<div style="text-align:center;font-size:18px;font-weight:bold;margin-bottom:15px;">วิทยาลัยเทคนิครัตนบุรี</div>' +
+        '<table style="width:100%;margin-bottom:15px;border:none;font-size:15px;">' +
+        '<tr><td style="border:none;">อาคารที่รับผิดชอบ : <span style="display:inline-block;width:220px;border-bottom:1px dotted #000;">' + location + '</span></td>' +
+        '<td style="border:none;text-align:right;">วันที่ : <span style="display:inline-block;width:120px;border-bottom:1px dotted #000;">' + esc(dt.date) + '</span></td></tr>' +
+        '<tr><td style="border:none;">ผู้ตรวจ : <span style="display:inline-block;width:220px;border-bottom:1px dotted #000;">' + inspector + '</span></td>' +
+        '<td style="border:none;text-align:right;">เวลา : <span style="display:inline-block;width:120px;border-bottom:1px dotted #000;">' + esc(dt.time) + '</span></td></tr>' +
+        '</table>' +
+        '<table class="print-table"><thead><tr>' +
+        '<th style="width:6%;">ลำดับ</th><th style="width:42%;">รายการตรวจสอบ</th>' +
+        '<th style="width:12%;">ปกติ</th><th style="width:15%;">ต้องแก้ไข</th><th>หมายเหตุ</th>' +
+        '</tr></thead><tbody>' + itemRows + '</tbody></table>' +
+        '<br><br><br>' +
+        '<table style="width:100%;border:none;"><tr>' +
+        '<td style="width:45%;text-align:center;border:none;">ลงชื่อ........................................................<br><br>(' + inspector + ')<br>ผู้ตรวจ</td>' +
+        '<td style="width:10%;border:none;"></td>' +
+        '<td style="width:45%;text-align:center;border:none;">ลงชื่อ........................................................<br><br>(นายปรีชา ศรชัย)<br>หัวหน้างานอาคารสถานที่</td>' +
+        '</tr></table>' +
+        '<br><br>' +
+        '<div style="text-align:center;">ลงชื่อ........................................................<br><br>(นายเพ็ชร เพียรชนะ)<br>รองผู้อำนวยการฝ่ายบริหารทรัพยากร</div>' +
+        '</div>';
+    });
+
+    pages += buildImageAppendixPages("weekly", rows, "ภาคผนวก: รูปภาพประกอบการตรวจรอบสัปดาห์", function(r) {
+      const dt = splitDateTime(r[0]);
+      return '<b>วันที่/เวลา:</b> ' + esc(dt.date) + ' ' + esc(dt.time) +
+        '<br><b>ผู้ตรวจ:</b> ' + esc(r[1]) + '<br><b>สถานที่:</b> ' + esc(r[2]);
+    });
+
+    document.getElementById("print-tab2").innerHTML = pages;
+  }
+
+  function buildPrintTab3(rows) {
+    rows = rows || [];
+    let bodyRows = "";
+
+    if (rows.length === 0) {
+      bodyRows = '<tr><td colspan="5" style="text-align:center;height:300px;">ไม่มีข้อมูลรายงานของวันที่เลือก</td></tr>';
+    } else {
+      rows.forEach(function(r) {
+        const dt = splitDateTime(r[0]);
+        bodyRows += '<tr>' +
+          '<td style="text-align:center;">' + esc(dt.date) + '<br>' + esc(dt.time) + '</td>' +
+          '<td>' + esc(r[1]) + '</td>' +
+          '<td>' + esc(r[2]) + '</td>' +
+          '<td>' + esc(r[3]) + '</td>' +
+          '<td style="text-align:center;">' + esc(r[5]) + '</td>' +
+          '</tr>';
+      });
+    }
+
+    let html = '<div class="print-page">' +
+      '<div class="print-title">รายงานการแจ้งซ่อม</div>' +
+      '<div class="print-subtitle">วิทยาลัยเทคนิครัตนบุรี</div>' +
+      '<table class="print-table"><thead><tr>' +
+      '<th style="width:18%">วัน / เวลา</th><th style="width:20%">พิกัด</th>' +
+      '<th style="width:20%">อาการชำรุด</th><th>รายละเอียด</th><th style="width:15%">สถานะ</th>' +
+      '</tr></thead><tbody>' + bodyRows + '</tbody></table>' +
+      '<br><br><br><br>' +
+      '<table style="width:100%;border:none;"><tr>' +
+      '<td style="width:45%;text-align:center;border:none;">ลงชื่อ........................................................<br><br>(...................................................)<br>ผู้แจ้งซ่อม</td>' +
+      '<td style="width:10%;border:none;"></td>' +
+      '<td style="width:45%;text-align:center;border:none;">ลงชื่อ........................................................<br><br>(นายปรีชา ศรชัย)<br>หัวหน้างานอาคารสถานที่</td>' +
+      '</tr></table>' +
+      '<br><br><br>' +
+      '<div style="text-align:center;">ลงชื่อ........................................................<br><br>(นายเพ็ชร เพียรชนะ)<br>รองผู้อำนวยการฝ่ายบริหารทรัพยากร</div>' +
+      '</div>';
+
+    html += buildImageAppendixPages("student", rows, "ภาคผนวก: รูปภาพประกอบการแจ้งซ่อม", function(r) {
+      const dt = splitDateTime(r[0]);
+      return '<b>วันที่/เวลา:</b> ' + esc(dt.date) + ' ' + esc(dt.time) +
+        '<br><b>พิกัด:</b> ' + esc(r[1]) + '<br><b>อาการชำรุด:</b> ' + esc(r[2]);
+    });
+
+    document.getElementById("print-tab3").innerHTML = html;
+  }
+
+  function buildPrintTab4(rows, dateStr) {
+    rows = rows || [];
+    let bodyRows = "";
+    let grandTotal = 0;
+
+    if (rows.length === 0) {
+      bodyRows = '<tr><td colspan="7" style="text-align: center; padding: 20px;">ไม่มีรายการขอซื้อขอจ้างในวันที่เลือก</td></tr>';
+    } else {
+      rows.forEach(function(r, idx) {
+        const itemTotal = parseFloat(r[5]) || 0;
+        grandTotal += itemTotal;
+
+        bodyRows += '<tr>' +
+          '<td style="text-align: center;">' + (idx + 1) + '</td>' +
+          '<td style="text-align: left;">' + esc(r[2]) + '</td>' +
+          '<td style="text-align: center;">' + esc(r[3]) + '</td>' +
+          '<td style="text-align: center;"></td>' +
+          '<td style="text-align: center;"></td>' +
+          '<td style="text-align: right;">' + (parseFloat(r[4] || 0)).toLocaleString() + '</td>' +
+          '<td style="text-align: right;">' + itemTotal.toLocaleString() + '</td>' +
+          '</tr>';
+      });
+
+      bodyRows += '<tr><td colspan="6" style="text-align: right; font-weight: bold; padding-right: 15px;">รวมยอดทั้งหมด</td>' +
+        '<td style="text-align: right; font-weight: bold;">' + grandTotal.toLocaleString() + '</td></tr>';
+    }
+
+    const dateLabel = dateStr ? formatThaiDate(dateStr) : "";
+
+    let html = '<div class="print-page" style="font-size: 14px;">' +
+      '<div class="print-title" style="margin-bottom: 20px;">รายละเอียดแนบท้ายบันทึกรายงานขอซื้อ/ขอจ้าง</div>' +
+      '<div style="margin-bottom: 5px;">เลขที่ใบสั่งซื้อ/สั่งจ้าง ที่.............................. ลงวันที่........................................</div>' +
+      '<div style="margin-bottom: 10px;">งานจัดซื้อ/พัสดุ/ครุภัณฑ์/งานจ้าง &nbsp;&nbsp;&nbsp;&nbsp; วันที่ ' + dateLabel + ' &nbsp;&nbsp;&nbsp;&nbsp; จำนวน ' + rows.length + ' รายการ</div>' +
+      '<table class="print-table"><thead>' +
+      '<tr><th rowspan="2" style="width: 5%;">ลำดับที่</th>' +
+      '<th rowspan="2" style="width: 30%;">รายละเอียดของพัสดุ/ครุภัณฑ์หรืองานจ้าง</th>' +
+      '<th rowspan="2" style="width: 12%;">จำนวน/หน่วย</th>' +
+      '<th rowspan="2" style="width: 12%;">(  ) ราคามาตรฐาน</th>' +
+      '<th rowspan="2" style="width: 15%;">(  ) ราคาที่ได้มาจาก<br>ท้องตลาด (หน่วยละ)</th>' +
+      '<th colspan="2">จำนวนวงเงินที่จะขอซื้อในครั้งนี้</th></tr>' +
+      '<tr><th style="width: 10%;">หน่วยละ</th><th style="width: 16%;">รวมจำนวนเงิน</th></tr>' +
+      '</thead><tbody>' + bodyRows + '</tbody></table>' +
+      '<div style="margin-top: 45px;">' +
+      '<div style="display: flex; justify-content: flex-end;">' +
+      '<div style="text-align: center; margin-right: 20px;">ลงชื่อ............................................................ ผู้ขอใช้พัสดุ<br>' +
+      '<div style="margin-top: 5px;">(&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)</div></div></div>' +
+      '<div style="display: flex; justify-content: space-between; margin-top: 50px;">' +
+      '<div style="text-align: center;">ลงชื่อ................................................ เจ้าหน้าที่พัสดุ<br>' +
+      '<div style="margin-top: 5px;">(.................................................)</div>' +
+      '<div style="margin-top: 5px;">วันที่.............../.............../..................</div></div>' +
+      '<div style="text-align: center;">ลงชื่อ........................................................... หัวหน้างานพัสดุ<br>' +
+      '<div style="margin-top: 5px;">(นายสราวุฒิ  รักษาวงค์)</div>' +
+      '<div style="margin-top: 5px;">วันที่.............../.............../..................</div></div>' +
+      '</div></div></div>';
+
+    html += buildImageAppendixPages("purchase", rows, "ภาคผนวก: รูปภาพประกอบการขอซื้ออุปกรณ์", function(r) {
+      const dt = splitDateTime(r[0]);
+      return '<b>วันที่/เวลา:</b> ' + esc(dt.date) + ' ' + esc(dt.time) +
+        '<br><b>ผู้ขอซื้อ:</b> ' + esc(r[1]) + '<br><b>รายการ:</b> ' + esc(r[2]);
+    });
+
+    document.getElementById("print-tab4").innerHTML = html;
+  }
+
+  function printCurrentTab() {
+    const activePane = document.querySelector(".tab-pane.active");
+    const activeId = activePane ? activePane.id : "tab1";
+    document.body.setAttribute("data-print-tab", activeId);
+    window.print();
+  }
 </script>
 </body>
 </html>
