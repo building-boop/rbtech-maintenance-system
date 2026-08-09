@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<script>
+  // 🔧 ตั้งค่า URL ของ Apps Script Web App ที่ deploy ไว้ (ลงท้ายด้วย /exec)
+  window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbx3VQnGBrWylwOd3WyZJhQpr_j9gs3tyjnXgKAv-rtH0ig1_Hu7fIT_7miEUXm_S8tslA/exec";
+</script>
+<script src="gas-bridge.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ระบบตรวจเช็คอุปกรณ์ - วิทยาลัยเทคนิครัตนบุรี</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+  :root {
+    /* โทนสีทางการ: แดงเลือดหมู - ทอง */
+    --bg: #F5F6F8;
+    --surface: #FFFFFF;
+    --primary: #8E1515; /* สีแดงเลือดหมู */
+    --primary-dark: #660E0E;
+    --accent: #D4AF37; /* สีทอง */
+    --success: #198754; /* สีเขียวปกติ */
+    --danger: #DC3545; /* สีแดงชำรุด */
+    --ink: #2C3338;
+    --muted: #6C757D;
+    --ring: rgba(142, 21, 21, 0.12);
+    --radius-lg: 16px;
+    --radius-md: 10px;
+  }
+  
+  * { box-sizing: border-box; }
+  
+  body {
+    font-family: 'Prompt', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    margin: 0;
+    padding: 24px 16px 100px;
+  }
+  
+  h1, h2, h3, .font-display { font-family: 'Kanit', sans-serif; }
+
+  .page-wrap { max-width: 600px; margin: 0 auto; }
+
+  /* ---------- Header / Top bar ---------- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 3px solid var(--accent);
+  }
+  .topbar .logo-container {
+    width: 75px; 
+    height: 75px; 
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #000; /* รองรับพื้นหลังของโลโก้ */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .topbar .logo-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .topbar .header-text h2 { font-size: 1rem; color: var(--muted); font-weight: 500; margin: 0 0 4px 0; }
+  .topbar .header-text h1 { font-size: 1.35rem; font-weight: 700; margin: 0; color: var(--primary); line-height: 1.2; }
+  .topbar .date-tag { font-size: 0.85rem; color: var(--primary-dark); margin-top: 6px; font-weight: 500; }
+
+  /* ---------- Live Inspection Summary ---------- */
+  .summary-card {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 24px -12px rgba(0,0,0,0.1);
+    border-top: 4px solid var(--primary);
+  }
+  .summary-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .summary-top .label { font-size: 0.9rem; color: var(--ink); font-weight: 600; font-family: 'Kanit', sans-serif;}
+  .summary-pill {
+    font-family: 'Kanit', sans-serif; font-weight: 600; font-size: 0.85rem;
+    padding: 6px 14px; border-radius: 99px;
+    background: rgba(25, 135, 84, 0.15); color: var(--success);
+  }
+  .summary-pill.has-issue { background: rgba(220, 53, 69, 0.15); color: var(--danger); }
+  .progress-track { height: 10px; border-radius: 99px; background: #E9ECEF; overflow: hidden; margin-bottom: 12px; }
+  .progress-fill { height: 100%; border-radius: 99px; background: var(--success); width: 100%; transition: all .3s ease; }
+  .defect-list { font-size: 0.85rem; color: var(--danger); display: none; background: #FFF5F5; padding: 10px; border-radius: 8px; border: 1px solid #FAD1D1;}
+  .defect-list span { font-weight: 600; }
+  .all-clear-msg { font-size: 0.85rem; color: var(--success); font-weight: 500;}
+
+  /* ---------- Form Cards ---------- */
+  .form-card {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 24px -12px rgba(0,0,0,0.08);
+    border: 1px solid #EBEBEB;
+  }
+  .form-select {
+    border-radius: var(--radius-md) !important;
+    border: 1px solid #CED4DA;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    background-color: #F8F9FA;
+  }
+  .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--ring); background-color: #FFF;}
+  .field-label { font-family: 'Kanit', sans-serif; font-weight: 600; font-size: 0.9rem; color: var(--primary-dark); margin-bottom: 8px; display: block; }
+
+  /* Shortcut Button */
+  .btn-shortcut {
+    width: 100%; border: none; border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--accent), #B89020);
+    color: #4A3A0B; font-family: 'Kanit', sans-serif; font-weight: 600; font-size: 1rem; padding: 14px;
+    box-shadow: 0 6px 16px -6px rgba(212, 175, 55, 0.6);
+    margin-bottom: 20px;
+    transition: transform 0.1s;
+  }
+  .btn-shortcut:active { transform: scale(0.98); }
+
+  /* ---------- Checklist Items ---------- */
+  .items-grid { display: block; }
+  .item-box {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: var(--radius-md);
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: border-color .2s ease, background .2s ease;
+  }
+  .item-box.is-defect { background: #FFF5F5; border-color: #F8D7DA; }
+  .item-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--primary); color: #FFF;
+    font-family: 'Kanit', sans-serif; font-weight: 600; font-size: 0.8rem;
+    margin-right: 10px; flex-shrink: 0;
+  }
+  .item-title { font-weight: 500; font-size: 0.95rem; display: flex; align-items: center; margin-bottom: 14px; color: var(--ink);}
+  .toggle-row { display: flex; gap: 12px; }
+  .btn-check { position: absolute; opacity: 0; pointer-events: none; }
+  .toggle-opt {
+    flex: 1; text-align: center; padding: 10px;
+    border-radius: 8px; border: 1px solid #DEE2E6;
+    font-weight: 500; font-size: 0.9rem; color: var(--muted);
+    cursor: pointer; transition: all .2s ease; user-select: none;
+    background: #F8F9FA;
+  }
+  .btn-check:checked + .toggle-opt.good { background: rgba(25, 135, 84, 0.1); border-color: var(--success); color: var(--success); font-weight: 600;}
+  .btn-check:checked + .toggle-opt.bad { background: rgba(220, 53, 69, 0.1); border-color: var(--danger); color: var(--danger); font-weight: 600;}
+  .toggle-opt:hover { border-color: #BDBDBD; }
+
+  /* Photo Upload */
+  .upload-zone {
+    border: 2px dashed #CED4DA; border-radius: var(--radius-md);
+    padding: 24px 16px; text-align: center; background: #F8F9FA;
+    position: relative; cursor: pointer; transition: background 0.2s;
+  }
+  .upload-zone:hover { background: #F1F3F5; }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-zone .u-icon { font-size: 2rem; color: var(--primary); margin-bottom: 8px;}
+  .upload-zone .u-text { font-size: 0.9rem; color: var(--muted); font-weight: 500; }
+  #previewWrap { margin-top: 16px; display: none; text-align: center;}
+  #previewImg { width: 100%; max-width: 300px; max-height: 250px; object-fit: cover; border-radius: var(--radius-md); border: 2px solid #E2E8F0;}
+
+  .btn-send {
+    width: 100%; padding: 16px; border: none; border-radius: var(--radius-md);
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: #fff; font-family: 'Kanit', sans-serif; font-weight: 600; font-size: 1.1rem;
+    box-shadow: 0 10px 20px -10px rgba(142, 21, 21, 0.6);
+    margin-top: 10px; transition: transform 0.1s;
+  }
+  .btn-send:active { transform: scale(0.98); }
+
+  /* ---------- Wide Screens ---------- */
+  @media (min-width: 760px) {
+    body { padding: 40px 24px; }
+    .page-wrap { max-width: 800px; }
+    .items-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+    .items-grid .item-box { margin-bottom: 0; }
+    .form-card.fields-card { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: end; }
+    .summary-card { position: sticky; top: 20px; z-index: 5; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+  <!-- Header Section -->
+  <div class="topbar">
+    <div class="logo-container">
+      <img src="https://lh3.googleusercontent.com/d/1fRohMoXnyqmqrXWYxy84vKo_6jRyBfhA" alt="โลโก้วิทยาลัยเทคนิครัตนบุรี">
+    </div>
+    <div class="header-text">
+      <h2>ระบบบันทึกข้อมูล</h2>
+      <h1 class="institute-name">วิทยาลัยเทคนิครัตนบุรี</h1>
+      <div class="date-tag">แบบฟอร์มตรวจเช็คอุปกรณ์ประจำสัปดาห์<br><span id="todayTag"></span></div>
+    </div>
+  </div>
+
+  <!-- Summary Card -->
+  <div class="summary-card">
+    <div class="summary-top">
+      <span class="label">สถานะการประเมินเบื้องต้น</span>
+      <span class="summary-pill" id="summaryPill">ปกติ 15/15</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="all-clear-msg" id="allClearMsg">✅ อุปกรณ์สมบูรณ์ — ตรวจครบแล้วสามารถส่งข้อมูลได้เลย</div>
+    <div class="defect-list" id="defectList"><span>⚠️ จุดที่ต้องแจ้งซ่อม/แก้ไข:</span> <br><span id="defectNames" style="font-weight: 400; color: #333;"></span></div>
+  </div>
+
+  <form id="weeklyForm" onsubmit="event.preventDefault(); handleSubmit('Weekly_Inspections', this);">
+
+    <!-- Inspector Information -->
+    <div class="form-card fields-card">
+      <div>
+        <label class="field-label">รายนามผู้ตรวจ</label>
+        <select class="form-select" name="inspector" id="w_staff" required></select>
+      </div>
+      <div>
+        <label class="field-label">อาคาร / สถานที่</label>
+        <select class="form-select" name="location" id="w_loc" required></select>
+      </div>
+    </div>
+
+    <!-- Shortcut -->
+    <button type="button" class="btn-shortcut" onclick="checkAllNormal()">
+      ✨ ทางลัด: ทำเครื่องหมาย "ปกติ" ทั้ง 15 รายการ
+    </button>
+
+    <!-- Checklist -->
+    <div id="weekly-items-container" class="items-grid"></div>
+
+    <!-- Photo Upload -->
+    <div class="form-card" style="margin-top:20px;">
+      <label class="field-label" style="color:var(--danger);"><i class="bi bi-camera"></i> ภาพถ่ายประกอบการแจ้งซ่อม (ถ้ามีจุดชำรุด)</label>
+      <label class="upload-zone" for="weekly_file">
+        <div class="u-icon">📷</div>
+        <div class="u-text">คลิกเพื่ออัปโหลด หรือถ่ายรูปจุดที่ชำรุด</div>
+        <input type="file" accept="image/*" id="weekly_file">
+      </label>
+      <div id="previewWrap"><img id="previewImg" alt="ตัวอย่างรูปภาพ"></div>
+    </div>
+
+    <button type="submit" class="btn-send">บันทึกและส่งรายงานผล</button>
+  </form>
+</div>
+
+<script>
+  const itemsText = [
+    "1. ประตูและกลอนประตู", "2. กระจกเงา", "3. ชักโครก / โถส้วม", "4. สายฉีดชำระ",
+    "5. โถปัสสาวะชาย", "6. อ่างล้างมือและก๊อกน้ำ", "7. ระบบระบายน้ำที่พื้น", "8. ระบบไฟฟ้าและแสงสว่าง",
+    "9. ผนังและเพดาน", "10. พัดลมระบายอากาศ/ช่องลม", "11. พื้นห้องน้ำ", "12. ถังขยะ",
+    "13. จุดบริการสบู่ล้างมือ", "14. กล่องใส่กระดาษชำระ", "15. ภาพรวมกลิ่น"
+  ];
+
+  window.onload = function() {
+    document.getElementById('todayTag').textContent =
+      new Date().toLocaleDateString('th-TH', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+    renderItems();
+
+    if (window.google && google.script && google.script.run) {
+      google.script.run.withSuccessHandler(function(data) {
+        populateSelect("w_loc", data.locations);
+        populateSelect("w_staff", data.staffs);
+      }).getDashboardData();
+    } else {
+      // ตัวอย่างข้อมูลแสดงผล
+      populateSelect("w_loc", ["อาคารอำนวยการ", "อาคารช่างยนต์", "อาคารช่างไฟฟ้า"]);
+      populateSelect("w_staff", ["นายวิศวกร เก่งกล้า", "นางสาวเอกสาร เรียบร้อย"]);
+    }
+
+    updateSummary();
+  };
+
+  function populateSelect(id, list) {
+    document.getElementById(id).innerHTML = list.map(item => `<option value="${item}">${item}</option>`).join('');
+  }
+
+  function renderItems() {
+    let html = itemsText.map((text, i) => `
+      <div class="item-box" id="box_${i}">
+        <div class="item-title"><span class="item-num">${i+1}</span>${text.replace(/^\d+\.\s*/, '')}</div>
+        <div class="toggle-row">
+          <input class="btn-check radio-normal" type="radio" name="item_${i+1}" id="i${i}_ok" value="ปกติ" checked>
+          <label class="toggle-opt good" for="i${i}_ok">✅ ปกติ</label>
+          <input class="btn-check" type="radio" name="item_${i+1}" id="i${i}_ng" value="ชำรุด/ต้องแก้ไข">
+          <label class="toggle-opt bad" for="i${i}_ng">❌ ชำรุด</label>
+        </div>
+      </div>
+    `).join('');
+    document.getElementById("weekly-items-container").innerHTML = html;
+  }
+
+  function checkAllNormal() {
+    document.querySelectorAll(".radio-normal").forEach(radio => radio.checked = true);
+    Swal.fire({icon: 'success', title: 'ดำเนินการเรียบร้อย', text: 'ระบบบันทึกสถานะปกติให้ทั้ง 15 รายการแล้ว', timer: 1500, showConfirmButton: false});
+    updateSummary();
+  }
+
+  function updateSummary() {
+    let defects = [];
+    itemsText.forEach((text, i) => {
+      const ngRadio = document.getElementById(`i${i}_ng`);
+      const box = document.getElementById(`box_${i}`);
+      const isDefect = ngRadio && ngRadio.checked;
+      if (box) box.classList.toggle('is-defect', !!isDefect);
+      if (isDefect) defects.push(text.replace(/^\d+\.\s*/, ''));
+    });
+
+    const okCount = itemsText.length - defects.length;
+    const pill = document.getElementById('summaryPill');
+    const fill = document.getElementById('progressFill');
+    const allClear = document.getElementById('allClearMsg');
+    const defectList = document.getElementById('defectList');
+    const defectNames = document.getElementById('defectNames');
+
+    pill.textContent = `ปกติ ${okCount}/${itemsText.length}`;
+    pill.classList.toggle('has-issue', defects.length > 0);
+    fill.style.width = (okCount / itemsText.length * 100) + '%';
+    fill.style.background = defects.length > 0 ? 'var(--danger)' : 'var(--success)';
+
+    if (defects.length > 0) {
+      allClear.style.display = 'none';
+      defectList.style.display = 'block';
+      defectNames.textContent = defects.join(' / ');
+    } else {
+      allClear.style.display = 'block';
+      defectList.style.display = 'none';
+    }
+  }
+  
+  document.addEventListener('change', function(e){
+    if (e.target && e.target.name && e.target.name.startsWith('item_')) {
+      updateSummary();
+    }
+  });
+
+  /**
+   * ย่อขนาด + บีบอัดรูปภาพผ่าน canvas ก่อนแปลงเป็น base64
+   * ช่วยลดขนาดไฟล์จากหลาย MB เหลือหลักร้อย KB โดยยังคงรายละเอียดชัดเจน
+   */
+  function compressImage(file, maxWidth = 1280, maxHeight = 1280, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const img = new Image();
+        img.onload = function () {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => reject(new Error('ไม่สามารถโหลดรูปภาพได้'));
+        img.src = e.target.result;
+      };
+      reader.onerror = () => reject(new Error('ไม่สามารถอ่านไฟล์ได้'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  document.getElementById('weekly_file') && document.addEventListener('change', async function(e){
+    if (e.target.id !== 'weekly_file') return;
+    const file = e.target.files[0];
+    const wrap = document.getElementById('previewWrap');
+    const img = document.getElementById('previewImg');
+    if (file) {
+      try {
+        const compressed = await compressImage(file);
+        img.src = compressed;
+        wrap.style.display = 'block';
+      } catch (err) {
+        Swal.fire('ผิดพลาด', 'ไม่สามารถประมวลผลรูปภาพได้', 'error');
+      }
+    } else {
+      wrap.style.display = 'none';
+    }
+  });
+
+  async function handleSubmit(type, formEl) {
+    Swal.fire({ title: 'กำลังบันทึกข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    let file = document.getElementById('weekly_file').files[0];
+    let formData = {};
+    new FormData(formEl).forEach((v, k) => formData[k] = v);
+
+    if(file) {
+      try {
+        const compressedBase64 = await compressImage(file);
+        executeSubmit(type, formData, compressedBase64, file.name.replace(/\.\w+$/, '.jpg'));
+      } catch (err) {
+        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถประมวลผลรูปภาพก่อนส่งได้', 'error');
+      }
+    } else {
+      executeSubmit(type, formData, null, null);
+    }
+  }
+
+  function executeSubmit(type, formData, base64, fileName) {
+    google.script.run.withSuccessHandler(res => {
+      if(res.status === "success") Swal.fire('สำเร็จ!', 'ส่งแบบประเมินเรียบร้อย', 'success').then(() => location.reload());
+      else Swal.fire('ผิดพลาด', res.message, 'error');
+    }).submitReport(type, formData, base64, fileName);
+  }
+</script>
+</body>
+</html>
