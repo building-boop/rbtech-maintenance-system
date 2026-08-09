@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<script>
+  // 🔧 ตั้งค่า URL ของ Apps Script Web App ที่ deploy ไว้ (ลงท้ายด้วย /exec)
+  window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbx3VQnGBrWylwOd3WyZJhQpr_j9gs3tyjnXgKAv-rtH0ig1_Hu7fIT_7miEUXm_S8tslA/exec";
+</script>
+<script src="gas-bridge.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ผู้ดูแลระบบ - สถิติภาพรวม</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@500;600;700&family=Prompt:wght@300;400;500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --primary-edu: #1E3A8A; --primary-dark: #0F172A; --bg: #F4F6F9;
+    --surface: #FFFFFF; --line: #E2E8F0; --ink: #1E293B; --muted: #64748B;
+  }
+  body { font-family: 'Prompt', sans-serif; background: var(--bg); color: var(--ink); padding-bottom: 60px; }
+  h1, h2, h3, h4, .font-display { font-family: 'Kanit', sans-serif; }
+
+  /* Navbar */
+  .custom-navbar { background-color: var(--primary-edu); box-shadow: 0 4px 15px rgba(15,23,42,0.15); padding: 10px 0; margin-bottom: 24px; }
+  .custom-navbar .navbar-brand { color: #ffffff; font-size: 1.25rem; }
+  .custom-navbar .nav-link { color: rgba(255,255,255,0.85); font-weight: 400; border-radius: 8px; transition: 0.2s; padding: 8px 14px !important; margin: 0 2px;}
+  .custom-navbar .nav-link:hover, .custom-navbar .nav-link.active { color: #ffffff; background-color: rgba(255,255,255,0.1); }
+  .btn-back-print { background: linear-gradient(135deg, #7A1C1C, #561010) !important; color: #ffffff !important; }
+
+  /* Dashboard Cards */
+  .stat-card { background: var(--surface); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-left: 5px solid; display: flex; align-items: center; justify-content: space-between; }
+  .stat-card.blue { border-color: #1E4ED8; }
+  .stat-card.red { border-color: #B91C1C; }
+  .stat-card.teal { border-color: #0F766E; }
+  .stat-card.gold { border-color: #D97706; }
+  .stat-card h3 { margin: 0; font-size: 2rem; font-weight: 700; }
+  .stat-card p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+  .chart-container { background: var(--surface); border-radius: 12px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 20px; }
+
+  .stat-card h3.loading { color: var(--muted) !important; font-size: 1rem; font-weight: 400; }
+</style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg custom-navbar no-print">
+  <div class="container px-3 px-lg-0">
+    <a class="navbar-brand font-display" href="https://script.google.com/a/macros/rbtech.ac.th/s/AKfycbwsr2hFfGYp44LANr0k5gdPdMzaSX3NecYbuQW67Dq-Hu_GII_A0tg699wAIiKYwTn62A/exec?page=admin">
+      <img src="https://lh3.googleusercontent.com/d/1fRohMoXnyqmqrXWYxy84vKo_6jRyBfhA" alt="โลโก้วิทยาลัยเทคนิครัตนบุรี" width="35" height="35" class="d-inline-block align-text-middle me-2" style="object-fit: contain;">
+      งานอาคารสถานที่
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="mainNavbar">
+      <ul class="navbar-nav ms-auto align-items-lg-center">
+        <li class="nav-item"><a class="nav-link" href="https://script.google.com/a/macros/rbtech.ac.th/s/AKfycbwsr2hFfGYp44LANr0k5gdPdMzaSX3NecYbuQW67Dq-Hu_GII_A0tg699wAIiKYwTn62A/exec?page=doshboard">📊 สถิติภาพรวม</a></li>
+        <li class="nav-item ms-lg-3 mt-2 mt-lg-0">
+          <a class="nav-link btn-back-print" href="https://script.google.com/a/macros/rbtech.ac.th/s/AKfycbwsr2hFfGYp44LANr0k5gdPdMzaSX3NecYbuQW67Dq-Hu_GII_A0tg699wAIiKYwTn62A/exec?page=admin">กลับหน้าตรวจสอบและสั่งพิมพ์เอกสาร</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="font-display" style="color:var(--primary-dark)">📊 สถิติภาพรวม (Dashboard)</h2>
+    <select class="form-select w-auto" id="periodSelect">
+      <option value="month">ประจำเดือนนี้</option>
+      <option value="year">ประจำปีนี้</option>
+    </select>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-md-3">
+      <div class="stat-card blue">
+        <div><p>ทำความสะอาด (ครั้ง)</p><h3 id="statCleaning" class="loading" style="color:#1E4ED8;">…</h3></div><div class="fs-1">🧹</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card teal">
+        <div><p>ตรวจสุขาภิบาล (ครั้ง)</p><h3 id="statSanitary" class="loading" style="color:#0F766E;">…</h3></div><div class="fs-1">📋</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card red">
+        <div><p>แจ้งซ่อมรอดำเนินการ</p><h3 id="statRepairPending" class="loading" style="color:#B91C1C;">…</h3></div><div class="fs-1">🚨</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-card gold">
+        <div><p>งบขอซื้ออุปกรณ์ (บาท)</p><h3 id="statBudget" class="loading" style="color:#D97706;">…</h3></div><div class="fs-1">🛒</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row mt-2">
+    <div class="col-md-8">
+      <div class="chart-container">
+        <h4 class="mb-3">สถิติการแจ้งซ่อมย้อนหลัง 6 เดือน</h4>
+        <canvas id="barChart" height="100"></canvas>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="chart-container">
+        <h4 class="mb-3">สถานที่แจ้งซ่อมบ่อยที่สุด</h4>
+        <canvas id="pieChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // เก็บ instance ของกราฟไว้ เพื่อจะได้ destroy ก่อนวาดใหม่ (ป้องกันกราฟซ้อนกัน)
+  let barChartInstance = null;
+  let pieChartInstance = null;
+
+  /**
+   * ฟังก์ชันตัวเลขในการ์ดสถิติ 4 ใบ
+   * คาดหวังว่า data (จาก getDashboardData() ฝั่ง Apps Script) มีรูปแบบ:
+   * {
+   *   cleaning: number,        // ทำความสะอาด (ครั้ง)
+   *   sanitary: number,        // ตรวจสุขาภิบาล (ครั้ง)
+   *   repairPending: number,   // แจ้งซ่อมรอดำเนินการ
+   *   budget: number,          // งบขอซื้ออุปกรณ์ (บาท)
+   *   repairHistory:    { labels: string[], counts: number[] },  // 6 เดือนย้อนหลัง
+   *   repairByLocation: { labels: string[], counts: number[] }   // สถานที่แจ้งซ่อมบ่อยที่สุด
+   * }
+   *
+   * ปรับชื่อ field ให้ตรงกับสิ่งที่ getDashboardData() ฝั่ง .gs จริงๆ ส่งกลับมาได้เลย
+   */
+  function updateDashboard(data) {
+    data = data || {};
+
+    setStat('statCleaning', data.cleaning);
+    setStat('statSanitary', data.sanitary);
+    setStat('statRepairPending', data.repairPending);
+    setStat('statBudget', formatNumber(data.budget));
+
+    updateCharts(data);
+  }
+
+  function setStat(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove('loading');
+    el.innerText = (value === undefined || value === null) ? '0' : value;
+  }
+
+  function formatNumber(n) {
+    if (n === undefined || n === null) return '0';
+    return Number(n).toLocaleString('th-TH');
+  }
+
+  function updateCharts(data) {
+    const history = (data && data.repairHistory) || { labels: [], counts: [] };
+    const byLocation = (data && data.repairByLocation) || { labels: [], counts: [] };
+
+    const barCtx = document.getElementById('barChart');
+    if (barCtx) {
+      if (barChartInstance) barChartInstance.destroy();
+      barChartInstance = new Chart(barCtx, {
+        type: 'bar',
+        data: {
+          labels: history.labels,
+          datasets: [{
+            label: 'จำนวนแจ้งซ่อม',
+            data: history.counts,
+            backgroundColor: '#1E4ED8'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    }
+
+    const pieCtx = document.getElementById('pieChart');
+    if (pieCtx) {
+      if (pieChartInstance) pieChartInstance.destroy();
+      pieChartInstance = new Chart(pieCtx, {
+        type: 'pie',
+        data: {
+          labels: byLocation.labels,
+          datasets: [{
+            data: byLocation.counts,
+            backgroundColor: ['#B91C1C', '#D97706', '#0F766E', '#1E4ED8', '#64748B', '#94A3B8']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+    }
+  }
+
+  /**
+   * ข้อมูลตัวอย่างไว้ใช้แสดงผลตอนเปิดไฟล์นี้นอก Google Apps Script
+   * (เช่น เปิดดูตรงๆ ในเบราว์เซอร์) จะไม่ถูกใช้เมื่อรันจริงบน Apps Script
+   */
+  function getFallbackData() {
+    return {
+      cleaning: 142,
+      sanitary: 24,
+      repairPending: 7,
+      budget: 5400,
+      repairHistory: {
+        labels: ['ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.'],
+        counts: [5, 8, 6, 10, 7, 9]
+      },
+      repairByLocation: {
+        labels: ['อาคาร 1', 'อาคาร 2', 'โรงอาหาร', 'สนามกีฬา', 'ห้องสมุด', 'อื่นๆ'],
+        counts: [10, 8, 6, 5, 3, 2]
+      }
+    };
+  }
+
+  function loadDashboard() {
+    const period = document.getElementById('periodSelect').value; // 'month' หรือ 'year'
+    if (window.google && google.script && google.script.run) {
+      // ทำงานจริงบน Google Apps Script -> ดึงข้อมูลสรุปจาก getDashboardStats() ใน Code.gs
+      // (ไม่ใช่ getDashboardData() ซึ่งคืนแถวดิบรายวันสำหรับหน้า admin คนละแบบกัน)
+      google.script.run
+        .withSuccessHandler(updateDashboard)
+        .withFailureHandler(function (err) {
+          console.error('getDashboardStats ล้มเหลว:', err);
+          updateDashboard(getFallbackData());
+        })
+        .getDashboardStats(period);
+    } else {
+      // เปิดไฟล์นอก Apps Script (พรีวิวในเบราว์เซอร์) -> ใช้ข้อมูลตัวอย่าง
+      updateDashboard(getFallbackData());
+    }
+  }
+
+  // เปลี่ยนช่วงเวลา (เดือนนี้ / ปีนี้) แล้วโหลดข้อมูลใหม่ตามช่วงที่เลือก
+  document.getElementById('periodSelect').addEventListener('change', loadDashboard);
+
+  document.addEventListener('DOMContentLoaded', loadDashboard);
+</script>
+</body>
+</html>

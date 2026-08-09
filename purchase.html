@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+<script>
+  // 🔧 ตั้งค่า URL ของ Apps Script Web App ที่ deploy ไว้ (ลงท้ายด้วย /exec)
+  window.GAS_API_URL = "https://script.google.com/macros/s/AKfycbx3VQnGBrWylwOd3WyZJhQpr_j9gs3tyjnXgKAv-rtH0ig1_Hu7fIT_7miEUXm_S8tslA/exec";
+</script>
+<script src="gas-bridge.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>แจ้งเบิกซื้ออุปกรณ์ - วิทยาลัยเทคนิครัตนบุรี</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    :root {
+      /* โทนสีทางการ: แดงเลือดหมู - ทอง (อ้างอิงจากโลโก้) */
+      --bg: #F5F6F8;
+      --surface: #FFFFFF;
+      --primary: #8E1515; /* สีแดงเลือดหมู */
+      --primary-dark: #660E0E;
+      --accent: #D4AF37; /* สีทอง */
+      --ink: #2C3338;
+      --muted: #6C757D;
+      --ring: rgba(142, 21, 21, 0.12);
+      --radius-lg: 16px;
+      --radius-md: 10px;
+    }
+    
+    * { box-sizing: border-box; }
+    
+    body {
+      font-family: 'Prompt', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px 16px 90px;
+    }
+    
+    h1, h2, h3, .font-display { font-family: 'Kanit', sans-serif; }
+  
+    .page-wrap { max-width: 600px; margin: 0 auto; }
+  
+    /* ---------- Header / Top bar ---------- */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 3px solid var(--accent);
+    }
+    .topbar .logo-container {
+      width: 75px; 
+      height: 75px; 
+      flex-shrink: 0;
+      border-radius: 50%;
+      background: #000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .topbar .logo-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .topbar .header-text h2 { font-size: 1rem; color: var(--muted); font-weight: 500; margin: 0 0 4px 0; }
+    .topbar .header-text h1 { font-size: 1.35rem; font-weight: 700; margin: 0; color: var(--primary); line-height: 1.2; }
+    .topbar .header-text p { font-size: 0.85rem; color: var(--primary-dark); margin-top: 6px; font-weight: 500; margin-bottom: 0; }
+  
+    /* ---------- Form Card ---------- */
+    .form-card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      padding: 24px 20px;
+      box-shadow: 0 8px 24px -12px rgba(0,0,0,0.1);
+      border-top: 4px solid var(--primary);
+    }
+    .field-block { margin-bottom: 20px; }
+    .field-label {
+      font-family: 'Kanit', sans-serif;
+      font-weight: 600; font-size: 0.95rem; color: var(--primary-dark);
+      margin-bottom: 8px; display: block;
+    }
+    .form-select, .form-control {
+      border-radius: var(--radius-md) !important;
+      border: 1px solid #CED4DA;
+      padding: 12px 14px;
+      font-size: 0.95rem;
+      background-color: #F8F9FA;
+    }
+    .form-select:focus, .form-control:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px var(--ring);
+      background-color: #FFF;
+    }
+  
+    textarea.form-control { resize: vertical; min-height: 80px; }
+  
+    /* Total Box */
+    .total-box {
+      background: linear-gradient(135deg, #F9FAFB, #F1F3F5);
+      color: var(--primary-dark);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      text-align: center;
+      font-family: 'Kanit', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-bottom: 24px;
+      border: 1px solid #DEE2E6;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .total-box span { color: var(--primary); font-size: 1.6rem; }
+  
+    /* Upload Zone */
+    .upload-zone {
+      border: 2px dashed #CED4DA; border-radius: var(--radius-md);
+      padding: 24px 16px; text-align: center; background: #F8F9FA;
+      position: relative; cursor: pointer; transition: background 0.2s;
+    }
+    .upload-zone:hover { background: #F1F3F5; border-color: var(--primary-dark); }
+    .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .upload-zone .u-icon { font-size: 1.8rem; color: var(--primary); margin-bottom: 8px;}
+    .upload-zone .u-text { font-size: 0.85rem; color: var(--muted); font-weight: 500; }
+    #previewWrap { margin-top: 16px; display: none; text-align: center; }
+    #img_preview { width: 100%; max-height: 200px; object-fit: cover; border-radius: var(--radius-md); border: 2px solid #E2E8F0; }
+  
+    .btn-send {
+      width: 100%; padding: 16px; border: none; border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: #fff; font-family: 'Kanit', sans-serif; font-weight: 600; font-size: 1.1rem;
+      box-shadow: 0 10px 20px -10px rgba(142, 21, 21, 0.6);
+      margin-top: 10px; transition: transform 0.1s;
+    }
+    .btn-send:active { transform: scale(0.98); }
+  
+    /* ---------- Wide Screens ---------- */
+    @media (min-width: 760px) {
+      body { padding: 40px 24px; }
+      .page-wrap { max-width: 650px; }
+      .form-card { padding: 32px 30px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+  <div class="topbar">
+    <div class="logo-container">
+     <img src="https://lh3.googleusercontent.com/d/1fRohMoXnyqmqrXWYxy84vKo_6jRyBfhA" alt="โลโก้วิทยาลัยเทคนิครัตนบุรี">
+    </div>
+    <div class="header-text">
+      <h2>ระบบงานพัสดุและซ่อมบำรุง</h2>
+      <h1 class="institute-name">วิทยาลัยเทคนิครัตนบุรี</h1>
+      <p>แบบฟอร์มแจ้งขอเบิกซื้อวัสดุ/อุปกรณ์ (สำหรับเจ้าหน้าที่)</p>
+    </div>
+  </div>
+
+  <div class="form-card">
+    <form id="purchaseForm" onsubmit="submitPurchaseForm(event)">
+      
+      <div class="field-block">
+        <label class="field-label">1. ชื่อผู้ขอซื้อ (เจ้าหน้าที่/นักการภารโรง)</label>
+        <select class="form-select" name="requester" id="p_staff" required>
+          <option value="">-- กำลังโหลดรายชื่อ --</option>
+        </select>
+      </div>
+
+      <div class="field-block">
+        <label class="field-label">2. รายละเอียดของพัสดุ/ครุภัณฑ์หรืองานจ้าง</label>
+        <input type="text" class="form-control" name="item_name" id="item_name" placeholder="เช่น สายฉีดชำระ, หลอดไฟ LED 18W" required>
+      </div>
+
+      <div class="row g-3 field-block">
+        <div class="col-6">
+          <label class="field-label">3. จำนวน (หน่วย)</label>
+          <input type="number" class="form-control" name="quantity" id="calc_qty" placeholder="เช่น 5" min="1" step="0.01" required oninput="calculateTotal()">
+        </div>
+        <div class="col-6">
+          <label class="field-label">4. ราคาหน่วยละ (บาท)</label>
+          <input type="number" class="form-control" name="price_per_unit" id="calc_price" placeholder="เช่น 120" min="0" step="0.01" required oninput="calculateTotal()">
+        </div>
+      </div>
+
+      <div class="total-box">
+        รวมเป็นเงิน: <span id="display_total">0.00</span> บาท
+        <input type="hidden" name="total_price" id="hidden_total" value="0">
+      </div>
+
+      <div class="field-block">
+        <label class="field-label">📸 5. แนบรูปภาพตัวอย่างอุปกรณ์/จุดที่ชำรุด (ถ้ามี)</label>
+        <label class="upload-zone" for="p_file">
+          <div class="u-icon">📷</div>
+          <div class="u-text">คลิกเพื่ออัปโหลด หรือถ่ายรูปสินค้าที่ต้องการซื้อ</div>
+          <input type="file" id="p_file" accept="image/*" onchange="previewImage(this)">
+        </label>
+        <div id="previewWrap">
+          <img id="img_preview" alt="ตัวอย่างรูปภาพ">
+        </div>
+      </div>
+
+      <div class="field-block">
+        <label class="field-label">📝 หมายเหตุ / เหตุผลการขอซื้อ</label>
+        <textarea class="form-control" name="note" id="note" placeholder="เช่น ขอซื้อเพื่อเปลี่ยนในห้องน้ำอาคาร 3 เนื่องจากของเดิมชำรุด"></textarea>
+      </div>
+
+      <button type="submit" class="btn-send">ส่งรายการขอซื้อพัสดุ</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  // ==========================================
+  // 1. โหลดข้อมูลรายชื่อเมื่อเปิดหน้าเว็บ
+  // ==========================================
+  window.onload = function() {
+    if (window.google && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          var staffSelect = document.getElementById("p_staff");
+          staffSelect.innerHTML = '<option value="">-- เลือกชื่อผู้ขอซื้อ --</option>';
+          
+          if (data.janitors && data.janitors.length > 0) {
+            data.janitors.forEach(function(janitor) {
+              var option = document.createElement("option");
+              option.value = janitor;
+              option.text = janitor;
+              staffSelect.appendChild(option);
+            });
+          }
+        })
+        .getDashboardData(); 
+    } else {
+      // ข้อมูลตัวอย่างสำหรับดูแบบฟอร์มภายนอกระบบ Apps Script
+      var staffSelect = document.getElementById("p_staff");
+      staffSelect.innerHTML = '<option value="">-- เลือกชื่อผู้ขอซื้อ --</option>' + 
+                              '<option value="นายสมหมาย ขยันงาน">นายสมหมาย ขยันงาน</option>' + 
+                              '<option value="นายสมชาย ใจดี">นายสมชาย ใจดี</option>';
+    }
+  };
+
+  // ==========================================
+  // 2. ฟังก์ชันคำนวณยอดเงินรวมอัตโนมัติ
+  // ==========================================
+  function calculateTotal() {
+    var qty = parseFloat(document.getElementById("calc_qty").value) || 0;
+    var price = parseFloat(document.getElementById("calc_price").value) || 0;
+    var total = qty * price;
+    
+    // อัปเดตตัวเลขแสดงผล และ ซ่อนค่าไว้ส่งไป Google Sheets
+    document.getElementById("display_total").innerText = total.toLocaleString("th-TH", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById("hidden_total").value = total;
+  }
+
+  // ==========================================
+  // 3. ฟังก์ชันย่อขนาด + บีบอัดรูปภาพผ่าน canvas ก่อนแปลงเป็น base64
+  //    (ลดขนาดไฟล์จากหลาย MB เหลือหลักร้อย KB โดยยังคงรายละเอียดชัดเจน)
+  // ==========================================
+  function compressImage(file, maxWidth, maxHeight, quality) {
+    maxWidth = maxWidth || 1280;
+    maxHeight = maxHeight || 1280;
+    quality = quality || 0.7;
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+          var width = img.width;
+          var height = img.height;
+          if (width > maxWidth || height > maxHeight) {
+            var ratio = Math.min(maxWidth / width, maxHeight / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+          var canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          var ctx = canvas.getContext('2d');
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = function () { reject(new Error('ไม่สามารถโหลดรูปภาพได้')); };
+        img.src = e.target.result;
+      };
+      reader.onerror = function () { reject(new Error('ไม่สามารถอ่านไฟล์ได้')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ==========================================
+  // 4. ฟังก์ชันพรีวิวรูปภาพก่อนส่ง (บีบอัดก่อนแสดงตัวอย่าง)
+  // ==========================================
+  function previewImage(input) {
+    var previewWrap = document.getElementById("previewWrap");
+    var preview = document.getElementById("img_preview");
+    if (input.files && input.files[0]) {
+      compressImage(input.files[0]).then(function(compressed) {
+        preview.src = compressed;
+        previewWrap.style.display = "block";
+      }).catch(function() {
+        Swal.fire('ผิดพลาด', 'ไม่สามารถประมวลผลรูปภาพได้', 'error');
+      });
+    } else {
+      previewWrap.style.display = "none";
+      preview.src = "";
+    }
+  }
+
+  // ==========================================
+  // 5. ฟังก์ชันส่งข้อมูลเมื่อกดปุ่ม Submit
+  // ==========================================
+  function submitPurchaseForm(event) {
+    event.preventDefault(); // ป้องกันเว็บรีเฟรช
+
+    // เปิดแจ้งเตือนกำลังโหลด
+    Swal.fire({
+      title: 'กำลังส่งข้อมูล...',
+      text: 'กรุณารอสักครู่ (หากมีรูปภาพอาจใช้เวลาสักพัก)',
+      allowOutsideClick: false,
+      didOpen: () => { Swal.showLoading(); }
+    });
+
+    // 1. ดึงข้อมูลจากฟอร์ม
+    var formData = {
+      requester: document.getElementById("p_staff").value,
+      item_name: document.getElementById("item_name").value,
+      quantity: document.getElementById("calc_qty").value,
+      price_per_unit: document.getElementById("calc_price").value,
+      total_price: document.getElementById("hidden_total").value,
+      note: document.getElementById("note").value
+    };
+
+    // 2. ดึงไฟล์รูปภาพจากช่อง Input
+    var fileInput = document.getElementById("p_file");
+    var file = fileInput.files[0];
+
+    // 3. ตรวจสอบและบีบอัดรูปภาพก่อนส่งไปที่ Google Apps Script
+    if (file) {
+      compressImage(file).then(function(compressedBase64) {
+        var fileName = file.name.replace(/\.\w+$/, '.jpg');
+        sendToGS(formData, compressedBase64, fileName);
+      }).catch(function() {
+        Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถประมวลผลรูปภาพก่อนส่งได้', 'error');
+      });
+    } else {
+      sendToGS(formData, "", ""); // กรณีไม่มีรูปภาพ
+    }
+  }
+
+  // ฟังก์ชันย่อยสำหรับเรียกฝั่งเซิร์ฟเวอร์
+  function sendToGS(formData, base64Data, fileName) {
+    if (window.google && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.status === "success") {
+            Swal.fire('สำเร็จ!', res.message, 'success').then(() => {
+              document.getElementById("purchaseForm").reset();
+              document.getElementById("previewWrap").style.display = "none";
+              document.getElementById("display_total").innerText = "0.00";
+            });
+          } else {
+            Swal.fire('เกิดข้อผิดพลาด!', res.message, 'error');
+          }
+        })
+        .withFailureHandler(function(err) {
+          Swal.fire('ข้อผิดพลาดระบบ!', err.message, 'error');
+        })
+        .submitReport("Purchase_Requests", formData, base64Data, fileName);
+    } else {
+      // จำลองการส่งข้อมูลกรณีไม่ได้รันบน Apps Script
+      setTimeout(() => {
+        Swal.fire('สำเร็จ!', 'จำลองการส่งข้อมูลเรียบร้อย (ไม่ได้เชื่อมต่อ Apps Script)', 'success').then(() => {
+          document.getElementById("purchaseForm").reset();
+          document.getElementById("previewWrap").style.display = "none";
+          document.getElementById("display_total").innerText = "0.00";
+        });
+      }, 1500);
+    }
+  }
+</script>
+</body>
+</html>
