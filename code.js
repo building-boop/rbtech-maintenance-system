@@ -249,7 +249,7 @@ function sendLineNotifications(lineMessage, photoUrl, senderName, confirmMessage
   if (photoUrl) {
     combinedText += `\n\n🔗 เปิดดูรูปหลักฐาน:\n${photoUrl}`;
   }
-  combinedText += "\n\n📋 หน้าระบบงานอาคารและสถานที่\nสำหรับตรวจสอบรายงานทั้งหมด\n👉 https://script.google.com/a/macros/rbtech.ac.th/s/AKfycbwsr2hFfGYp44LANr0k5gdPdMzaSX3NecYbuQW67Dq-Hu_GII_A0tg699wAIiKYwTn62A/exec?page=admin";
+  combinedText += "\n\n📋 หน้าระบบงานอาคารและสถานที่\nสำหรับตรวจสอบรายงานทั้งหมด\n👉 https://building-boop.github.io/rbtech-maintenance-system/admin.html";
 
   var requests = [];
   requests.push({
@@ -549,7 +549,7 @@ function sendLineOA(messageText, photoUrl) {
   }
 
   // 3. เคาะบรรทัดแล้วต่อด้วยลิงก์เข้าหน้า Dashboard ให้ Admin ตอนท้ายสุด
-  combinedText += "\n\n📋 หน้าระบบงานอาคารและสถานที่\nสำหรับตรวจสอบรายงานทั้งหมด\n👉 https://script.google.com/a/macros/rbtech.ac.th/s/AKfycbwsr2hFfGYp44LANr0k5gdPdMzaSX3NecYbuQW67Dq-Hu_GII_A0tg699wAIiKYwTn62A/exec?page=admin";
+  combinedText += "\n\n📋 หน้าระบบงานอาคารและสถานที่\nสำหรับตรวจสอบรายงานทั้งหมด\n👉 https://building-boop.github.io/rbtech-maintenance-system/admin.html";
 
   // รวมเป็น Message เดียว (1 บับเบิ้ล)
   var messages = [{ "type": "text", "text": combinedText }];
